@@ -9,3 +9,6 @@ venv/
 
 # Compiled stuff
 __pycache__/
+
+# Silly try-out scripts
+tryouts/

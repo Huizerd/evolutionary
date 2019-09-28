@@ -1,1 +1,1 @@
--e git+https://github.com/Huizerd/gym-quad#egg=gym-quad
+-e git+https://github.com/Huizerd/gym-quad#egg=gym_quad
