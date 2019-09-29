@@ -71,9 +71,6 @@ def main(seed=None):
     random.seed(seed)
     np.random.seed(seed)
 
-    # TODO: used and needed?
-    log_interval = 25
-
     # Initialize population
     # Pareto front: set of individuals that are not strictly dominated
     # (i.e., better scores for all objectives) by others
@@ -177,6 +174,9 @@ def main(seed=None):
     for i, ind in enumerate(hof):
         torch.save(ind[0].state_dict(), f"logs/hof_{i}.net")
 
+    # TODO: Save last fig + indicate hall of fame?
+    last_fig.save("logs/final.png")
+
 
 if __name__ == "__main__":
     # Parse input arguments
@@ -190,4 +190,4 @@ if __name__ == "__main__":
         main(args["seed"])
     elif args["mode"] == "test":
         assert args["weights"] is not None, "Provide weights for testing!"
-        vis_hover()
+        vis_hover(args["weights"])
