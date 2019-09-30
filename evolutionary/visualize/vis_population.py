@@ -1,9 +1,55 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D, proj3d
+from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_population(population, last=None):
+def vis_relevant(population, obj_idx, obj_labels, last=None):
+    # Create figure and axis if not there, else unpack
+    if last is None:
+        plt.ion()
+        fig = plt.figure(dpi=200)
+        ax = fig.add_subplot(111)
+    else:
+        fig, ax = last
+
+    # Clear axis
+    ax.cla()
+
+    # Get relevant fitness values and plot
+    fitnesses = np.array(
+        [
+            ind.fitness.values + (i,)
+            for i, ind in enumerate(population)
+            if ind.fitness.values[obj_idx[0][0]] < obj_idx[0][1]
+            and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
+        ]
+    )
+    ax.scatter(fitnesses[:, obj_idx[0][0]], fitnesses[:, obj_idx[1][0]])
+
+    # Annotate
+    for i in range(fitnesses.shape[0]):
+        ax.text(
+            fitnesses[i, obj_idx[0][0]],
+            fitnesses[i, obj_idx[1][0]],
+            str(int(fitnesses[i, 3])),
+        )
+
+    # Decorate figure
+    ax.set_xlabel(obj_labels[obj_idx[0][0]])
+    ax.set_ylabel(obj_labels[obj_idx[1][0]])
+    ax.grid()
+
+    # Update/draw figure
+    ax.relim()
+    ax.autoscale_view()
+    fig.tight_layout()
+    fig.canvas.draw()
+    fig.canvas.flush_events()
+
+    return fig, ax
+
+
+def vis_population(population, obj_labels, last=None):
     # Create figure and axis if not there, else unpack
     if last is None:
         plt.ion()
@@ -20,9 +66,9 @@ def vis_population(population, last=None):
     ax.scatter(fitnesses[:, 0], fitnesses[:, 1], fitnesses[:, 2])
 
     # Decorate figure
-    ax.set_xlabel("Time to land")
-    ax.set_ylabel("Final altitude")
-    ax.set_zlabel("Final velocity")
+    ax.set_xlabel(obj_labels[0])
+    ax.set_ylabel(obj_labels[1])
+    ax.set_zlabel(obj_labels[2])
     ax.grid()
 
     # Update/draw figure

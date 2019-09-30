@@ -1,80 +1,106 @@
 import argparse
+import datetime, time
+import os
 import random
+import yaml
 from functools import partial
 from itertools import chain
+from shutil import copyfile
 
 import torch
 import numpy as np
 from deap import base, creator, tools
 from scoop import futures
 
-# TODO: look at package structure, maybe more in (init) files instead of separate files and folders?
-# TODO: why does it work with bindsnet? The structure?
 from evolutionary.network.ann import ANN
+from evolutionary.network.snn import SNN
+from evolutionary.environment.hover_env import QuadHover
+from evolutionary.environment.landing_env import QuadLanding
 from evolutionary.evaluate.eval_hover import eval_hover
+from evolutionary.evaluate.eval_landing import eval_landing
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.visualize.vis_hover import vis_hover
-from evolutionary.visualize.vis_population import vis_population
+from evolutionary.visualize.vis_performance import vis_performance
+from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
-
-# TODO: set seeds here in case we go for full determinism
-# np.random.seed(0)
-# random.seed(0)
 
 # Suppress scientific notation
 np.set_printoptions(suppress=True)
 
 # Set up DEAP
-# TODO: need we move this for configurability?
-MUTATION_RATE = 0.3
-NGEN = 250
-MU = 100
-
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))  # minimize all
+creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))
 creator.create("Individual", list, fitness=creator.Fitness)
 
-toolbox = base.Toolbox()
-# TODO: check the need for n=1 here
-# TODO: we need initialization here, why didn't kirk?
-toolbox.register(
-    "individual",
-    tools.initRepeat,
-    container=creator.Individual,
-    func=partial(ANN, 2, 8, 1),
-    n=1,
-)
-toolbox.register(
-    "population", tools.initRepeat, container=list, func=toolbox.individual
-)
-toolbox.register("evaluate", eval_hover)
-toolbox.register("mate", crossover_none)
-toolbox.register("mutate", partial(mutate_call_network, mutation_rate=MUTATION_RATE))
-toolbox.register("select", tools.selNSGA2)
-toolbox.register("map", futures.map)  # for SCOOP
 
-# TODO: or move into main because it needs to be reset for each call of main?
-stats = tools.Statistics(lambda ind: ind.fitness.values)
-stats.register("avg", np.mean, axis=0)
-stats.register("std", np.std, axis=0)
-stats.register("min", np.min, axis=0)
-stats.register("max", np.max, axis=0)
-stats.register("median", np.median, axis=0)
+def main(config):
+    # Don't bother with determinism since tournament is stochastic!
 
-logbook = tools.Logbook()
-logbook.header = ("gen", "evals", "avg", "median", "std", "min", "max")
+    # Build network
+    if config["network"] == "ANN":
+        network = partial(ANN, 2, config["hidden size"], 1)
+    elif config["network"] == "SNN":
+        network = partial(SNN, 2, config["hidden size"], 1)
+    else:
+        raise KeyError("Not a valid network key!")
 
+    # Set up scenario
+    if config["scenario"] == "hover":
+        env = QuadHover
+        eval = eval_hover
+        obj_idx = ((0, 40), (2, 10))
+        obj_labels = ("air time", "total divergence", "final height offset")
+    elif config["scenario"] == "landing":
+        env = QuadLanding
+        eval = eval_landing
+        obj_idx = ((0, 40), (2, 10))
+        obj_labels = ("time to land", "final height", "final velocity")
+    else:
+        raise KeyError("Not a valid scenario key!")
 
-def main(seed=None):
-    # Not enough for determinism (since tournament is non-deterministic!)
-    # TODO: keep or remove? Or adjust tournament?
-    random.seed(seed)
-    np.random.seed(seed)
+    # And init environment
+    env = env(
+        delay=np.random.randint(*config["env"]["delay"]),
+        comp_delay_prob=config["env"]["comp delay prob"],
+        noise=np.random.uniform(*config["env"]["noise"]),
+        noise_p=np.random.uniform(*config["env"]["noise p"]),
+        thrust_tc=np.random.uniform(*config["env"]["thrust tc"]),
+        settle=config["env"]["settle"],
+        wind=config["env"]["wind"],
+        h0=config["env"]["h0"][0],
+        dt=config["env"]["dt"],
+        seed=np.random.randint(config["env"]["seeds"]),
+    )
+
+    # Set up remainder of DEAP
+    toolbox = base.Toolbox()
+    toolbox.register(
+        "individual", tools.initRepeat, container=creator.Individual, func=network, n=1
+    )
+    toolbox.register(
+        "population", tools.initRepeat, container=list, func=toolbox.individual
+    )
+    toolbox.register("evaluate", partial(eval, env, config["env"]["h0"]))
+    toolbox.register("mate", crossover_none)
+    toolbox.register(
+        "mutate", partial(mutate_call_network, mutation_rate=config["mutation rate"])
+    )
+    toolbox.register("select", tools.selNSGA2)
+    toolbox.register("map", futures.map)  # for SCOOP
+
+    stats = tools.Statistics(lambda ind: ind.fitness.values)
+    stats.register("avg", np.mean, axis=0)
+    stats.register("std", np.std, axis=0)
+    stats.register("min", np.min, axis=0)
+    stats.register("max", np.max, axis=0)
+    stats.register("median", np.median, axis=0)
+
+    logbook = tools.Logbook()
+    logbook.header = ("gen", "evals", "avg", "median", "std", "min", "max")
 
     # Initialize population
     # Pareto front: set of individuals that are not strictly dominated
     # (i.e., better scores for all objectives) by others
-    population = toolbox.population(n=MU)
+    population = toolbox.population(n=config["pop size"])
     hof = tools.ParetoFront()  # hall of fame!
 
     # Evaluate population
@@ -94,16 +120,30 @@ def main(seed=None):
     )
     print(logbook.stream)
 
-    # Plot population fitness
-    last_fig = vis_population(population)
+    # Plot population fitness and its relevant part
+    last_pop = vis_population(population, obj_labels)
+    last_rel = vis_relevant(population, obj_idx, obj_labels)
 
     # Update hall of fame
     hof.update(population)
 
-    # TODO: Kirk has some folder creation + initial weight saving here
+    # Create folders for parameters
+    for i in range(0, config["gens"], config["log interval"]):
+        os.makedirs(f"{config['log location']}parameters_{i}/")
+    if not os.path.exists(f"{config['log location']}parameters_{config['gens'] - 1}/"):
+        os.makedirs(f"{config['log location']}parameters_{config['gens'] - 1}/")
+
+    # And log the initial performance
+    last_pop[0].savefig(f"{config['log location']}population_0.png")
+    last_rel[0].savefig(f"{config['log location']}relevant_0.png")
+    for i, ind in enumerate(population):
+        torch.save(
+            ind[0].state_dict(),
+            f"{config['log location']}parameters_0/individual_{i}.net",
+        )
 
     # Begin the evolution!
-    for gen in range(1, NGEN):
+    for gen in range(1, config["gens"]):
         # Get Pareto front
         # sortNondominated() returns a list of "fronts",
         # of which the first is the actual Pareto front
@@ -151,9 +191,7 @@ def main(seed=None):
 
         # Select the population for the next generation
         # from the last generation and its offspring
-        population = toolbox.select(population + offspring, MU)
-
-        # TODO: Kirk does another sort here to plot the Pareto front
+        population = toolbox.select(population + offspring, config["pop size"])
 
         # Log stuff
         record = stats.compile(population)
@@ -164,30 +202,65 @@ def main(seed=None):
         )
         print(logbook.stream)
 
-        # Plot population fitness
-        last_fig = vis_population(population, last=last_fig)
+        # Plot population fitness and the relevant part of it
+        last_pop = vis_population(population, obj_labels, last=last_pop)
+        last_rel = vis_relevant(population, obj_idx, obj_labels, last=last_rel)
 
-        # TODO: Kirk does some weight saving here
+        # Log every so many generations
+        if not gen % config["log interval"]:
+            # Save population figure
+            last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+            last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
-    # TODO: and some final saving/logging here
-    # Save hall of fame
+            # Save parameters of entire population
+            for i, ind in enumerate(population):
+                torch.save(
+                    ind[0].state_dict(),
+                    f"{config['log location']}parameters_{gen}/individual_{i}.net",
+                )
+
+    # Save parameters of population and hall of fame
+    for i, ind in enumerate(population):
+        torch.save(
+            ind[0].state_dict(),
+            f"{config['log location']}parameters_{config['gens'] - 1}/individual_{i}.net",
+        )
     for i, ind in enumerate(hof):
-        torch.save(ind[0].state_dict(), f"logs/hof_{i}.net")
+        torch.save(
+            ind[0].state_dict(),
+            f"{config['log location']}parameters_{config['gens'] - 1}/hof_{i}.net",
+        )
 
-    # TODO: Save last fig + indicate hall of fame?
-    last_fig.save("logs/final.png")
+    # Save final figure of population
+    last_pop[0].savefig(f"{config['log location']}population_{config['gens'] - 1}.png")
+    last_rel[0].savefig(f"{config['log location']}relevant_{config['gens'] - 1}.png")
 
 
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
-    parser.add_argument("--weights", type=str, default=None)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--config", type=str, required=True, default=None)
+    parser.add_argument("--parameters", type=str, default=None)
     args = vars(parser.parse_args())
 
+    # Read config file
+    with open(args["config"], "r") as cf:
+        config = yaml.full_load(cf)
+
+    # Create folders based on time stamp
+    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime(
+        "%Y-%m-%d_%H:%M:%S"
+    )
+    config["log location"] += timestamp + "/"
+    if not os.path.exists(config["log location"]):
+        os.makedirs(config["log location"])
+
+    # Save config file there for reference
+    copyfile(args["config"], config["log location"] + "config.yaml")
+
     if args["mode"] == "evolve":
-        main(args["seed"])
+        main(config)
     elif args["mode"] == "test":
-        assert args["weights"] is not None, "Provide weights for testing!"
-        vis_hover(args["weights"])
+        assert args["parameters"] is not None, "Provide network parameters for testing!"
+        vis_performance(config, args["parameters"])
