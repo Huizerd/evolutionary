@@ -24,7 +24,10 @@ def vis_relevant(population, obj_idx, obj_labels, last=None):
             and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
         ]
     )
-    ax.scatter(fitnesses[:, obj_idx[0][0]], fitnesses[:, obj_idx[1][0]])
+    if fitnesses.size > 0:
+        ax.scatter(fitnesses[:, obj_idx[0][0]], fitnesses[:, obj_idx[1][0]])
+    else:
+        return fig, ax
 
     # Annotate
     for i in range(fitnesses.shape[0]):

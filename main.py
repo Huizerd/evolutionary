@@ -10,7 +10,6 @@ from shutil import copyfile
 import torch
 import numpy as np
 from deap import base, creator, tools
-from scoop import futures
 
 from evolutionary.network.ann import ANN
 from evolutionary.network.snn import SNN
@@ -20,6 +19,7 @@ from evolutionary.evaluate.eval_hover import eval_hover
 from evolutionary.evaluate.eval_landing import eval_landing
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
+from evolutionary.utils.utils import dask_map
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
@@ -47,7 +47,7 @@ def main(config):
     if config["scenario"] == "hover":
         env = QuadHover
         eval = eval_hover
-        obj_idx = ((0, 40), (2, 10))
+        obj_idx = ((1, 40), (2, 2))
         obj_labels = ("air time", "total divergence", "final height offset")
     elif config["scenario"] == "landing":
         env = QuadLanding
@@ -85,7 +85,7 @@ def main(config):
         "mutate", partial(mutate_call_network, mutation_rate=config["mutation rate"])
     )
     toolbox.register("select", tools.selNSGA2)
-    toolbox.register("map", futures.map)  # for SCOOP
+    toolbox.register("map", dask_map)  # for Dask
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
@@ -249,18 +249,20 @@ if __name__ == "__main__":
         config = yaml.full_load(cf)
 
     # Create folders based on time stamp
-    timestamp = datetime.datetime.fromtimestamp(time.time()).strftime(
+    start_time = time.time()
+    timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
         "%Y-%m-%d_%H:%M:%S"
     )
     config["log location"] += timestamp + "/"
-    if not os.path.exists(config["log location"]):
+    if not os.path.exists(config["log location"]) and args["mode"] == "evolve":
         os.makedirs(config["log location"])
-
-    # Save config file there for reference
-    copyfile(args["config"], config["log location"] + "config.yaml")
+        # Save config file there for reference
+        copyfile(args["config"], config["log location"] + "config.yaml")
 
     if args["mode"] == "evolve":
         main(config)
     elif args["mode"] == "test":
         assert args["parameters"] is not None, "Provide network parameters for testing!"
         vis_performance(config, args["parameters"])
+
+    print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

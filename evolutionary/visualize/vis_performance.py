@@ -28,9 +28,9 @@ def vis_performance(config, parameters):
 
     # Load network
     if config["network"] == "ANN":
-        network = partial(ANN, 2, config["hidden size"], 1)
+        network = ANN(2, config["hidden size"], 1)
     elif config["network"] == "SNN":
-        network = partial(SNN, 2, config["hidden size"], 1)
+        network = SNN(2, config["hidden size"], 1)
     else:
         raise KeyError("Not a valid network key!")
 
@@ -68,7 +68,7 @@ def vis_performance(config, parameters):
         # plt.plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
         plt.xlabel("Time")
         plt.title(f"Performance starting from {h} m")
-        plt.ylim(-1, h + 1)
+        plt.ylim(-1, env.MAX_H + 1)
         plt.legend()
         plt.grid()
         plt.show()
