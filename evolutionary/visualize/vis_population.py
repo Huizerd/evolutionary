@@ -68,6 +68,10 @@ def vis_population(population, obj_labels, last=None):
     fitnesses = np.array([ind.fitness.values for ind in population])
     ax.scatter(fitnesses[:, 0], fitnesses[:, 1], fitnesses[:, 2])
 
+    # Annotate
+    for i in range(fitnesses.shape[0]):
+        ax.text(fitnesses[i, 0], fitnesses[i, 1], fitnesses[i, 2], str(i))
+
     # Decorate figure
     ax.set_xlabel(obj_labels[0])
     ax.set_ylabel(obj_labels[1])

@@ -9,6 +9,7 @@ from shutil import copyfile
 
 import torch
 import numpy as np
+import pandas as pd
 from deap import base, creator, tools
 
 from evolutionary.network.ann import ANN
@@ -20,6 +21,7 @@ from evolutionary.evaluate.eval_landing import eval_landing
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.utils import dask_map
+from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
@@ -132,6 +134,7 @@ def main(config):
         os.makedirs(f"{config['log location']}parameters_{i}/")
     if not os.path.exists(f"{config['log location']}parameters_{config['gens'] - 1}/"):
         os.makedirs(f"{config['log location']}parameters_{config['gens'] - 1}/")
+    os.makedirs(f"{config['log location']}hof/")
 
     # And log the initial performance
     last_pop[0].savefig(f"{config['log location']}population_0.png")
@@ -207,33 +210,26 @@ def main(config):
         last_rel = vis_relevant(population, obj_idx, obj_labels, last=last_rel)
 
         # Log every so many generations
-        if not gen % config["log interval"]:
+        if not gen % config["log interval"] or gen == config["gens"] - 1:
             # Save population figure
             last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
             last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
-            # Save parameters of entire population
+            # Save parameters of entire population and hall of fame
             for i, ind in enumerate(population):
                 torch.save(
                     ind[0].state_dict(),
                     f"{config['log location']}parameters_{gen}/individual_{i}.net",
                 )
+            for i, ind in enumerate(hof):
+                torch.save(
+                    ind[0].state_dict(), f"{config['log location']}hof/hof_{i}.net"
+                )
 
-    # Save parameters of population and hall of fame
-    for i, ind in enumerate(population):
-        torch.save(
-            ind[0].state_dict(),
-            f"{config['log location']}parameters_{config['gens'] - 1}/individual_{i}.net",
-        )
-    for i, ind in enumerate(hof):
-        torch.save(
-            ind[0].state_dict(),
-            f"{config['log location']}parameters_{config['gens'] - 1}/hof_{i}.net",
-        )
-
-    # Save final figure of population
-    last_pop[0].savefig(f"{config['log location']}population_{config['gens'] - 1}.png")
-    last_rel[0].savefig(f"{config['log location']}relevant_{config['gens'] - 1}.png")
+            # Save logbook
+            pd.DataFrame(logbook).to_csv(
+                f"{config['log location']}logbook.tsv", sep="\t", index=False
+            )
 
 
 if __name__ == "__main__":
@@ -263,6 +259,7 @@ if __name__ == "__main__":
         main(config)
     elif args["mode"] == "test":
         assert args["parameters"] is not None, "Provide network parameters for testing!"
+        vis_network(config, args["parameters"])
         vis_performance(config, args["parameters"])
 
     print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

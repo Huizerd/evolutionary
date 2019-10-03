@@ -11,5 +11,6 @@ setup(
         "matplotlib",
         "pre-commit",
         "dask[bag]",
+        "pandas",
     ],
 )
