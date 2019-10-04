@@ -41,7 +41,7 @@ def main(config):
     if config["network"] == "ANN":
         network = partial(ANN, 2, config["hidden size"], 1)
     elif config["network"] == "SNN":
-        network = partial(SNN, 2, config["hidden size"], 1)
+        network = partial(SNN, 2, config["hidden size"], 1, config)
     else:
         raise KeyError("Not a valid network key!")
 
@@ -65,6 +65,7 @@ def main(config):
         comp_delay_prob=config["env"]["comp delay prob"],
         noise=np.random.uniform(*config["env"]["noise"]),
         noise_p=np.random.uniform(*config["env"]["noise p"]),
+        thrust_bounds=config["env"]["thrust bounds"],
         thrust_tc=np.random.uniform(*config["env"]["thrust tc"]),
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],

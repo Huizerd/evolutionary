@@ -12,15 +12,19 @@ from evolutionary.network.snn import SNN
 def vis_network(config, parameters):
     # Load network
     if config["network"] == "ANN":
-        network = ANN(2, config["hidden size"], 1)
+        raise NotImplementedError(
+            "Weight visualization has not been implemented yet for ANNs!"
+        )
+        # network = ANN(2, config["hidden size"], 1)
     elif config["network"] == "SNN":
-        network = SNN(2, config["hidden size"], 1)
+        network = SNN(2, config["hidden size"], 1, config)
     else:
         raise KeyError("Not a valid network key!")
 
     network.load_state_dict(torch.load(parameters))
 
     # Collect weights based on module being a connection or not
+    # TODO: adapt for ANNs?
     weights = OrderedDict(
         [
             (name, module.weight.T.clone())

@@ -19,6 +19,7 @@ def vis_performance(config, parameters):
         comp_delay_prob=0.0,
         noise=0.1,
         noise_p=0.1,
+        thrust_bounds=(-0.8, 0.5),
         thrust_tc=0.02,
         settle=1.0,
         wind=0.0,
@@ -33,7 +34,7 @@ def vis_performance(config, parameters):
         network = ANN(2, config["hidden size"], 1)
         vis_neurons = True
     elif config["network"] == "SNN":
-        network = SNN(2, config["hidden size"], 1)
+        network = SNN(2, config["hidden size"], 1, config)
         vis_neurons = True
     else:
         raise KeyError("Not a valid network key!")
@@ -89,11 +90,11 @@ def vis_performance(config, parameters):
             obs, _, done, _ = env.step(action)
 
         # Plot
+        plt.plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
         plt.plot(time_list, np.array(state_list)[:, 0], label="Height")
         plt.plot(time_list, np.array(state_list)[:, 1], label="Velocity")
-        plt.plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
         plt.plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
-        plt.plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
+        # plt.plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
         plt.plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
         # plt.plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
         plt.xlabel("Time")

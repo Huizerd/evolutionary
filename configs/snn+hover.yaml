@@ -11,9 +11,30 @@ env:
   comp delay prob: 0.0
   noise: [0.0, 0.15]
   noise p: [0.0, 0.25]
+  thrust bounds: [-0.8, 0.5]  # in G's
   thrust tc: [0.02, 0.1]
   settle: 1.0
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
   dt: 0.02
   seeds: 100
+snn:
+  time: 50  # not used (properly)
+  intensity: 128  # not used
+  n samples: 20  # not used
+  batch size: 1  # always 1 I guess
+  thresh: 0.8
+  v rest: 0.0
+  alpha v: 0.2
+  alpha t: 1.0
+  tau v: 5
+  tau t: 5
+  voltage decay: 0.8  # taus are used for exponential neurons, decays for linear ones
+  trace decay: 0.8
+  duration refrac: 1
+  dt: 1
+  delay: 0
+  scale: 10.0
+  offset: 1.0
+  max trace: 1.0
+  decoding: trace
