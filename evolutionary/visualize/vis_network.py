@@ -1,6 +1,7 @@
 from collections import OrderedDict
 
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 
 from pysnn.connection import Connection
@@ -12,10 +13,7 @@ from evolutionary.network.snn import SNN
 def vis_network(config, parameters):
     # Load network
     if config["network"] == "ANN":
-        raise NotImplementedError(
-            "Weight visualization has not been implemented yet for ANNs!"
-        )
-        # network = ANN(2, config["hidden size"], 1)
+        network = ANN(2, config["hidden size"], 1)
     elif config["network"] == "SNN":
         network = SNN(2, config["hidden size"], 1, config)
     else:
@@ -27,9 +25,9 @@ def vis_network(config, parameters):
     # TODO: adapt for ANNs?
     weights = OrderedDict(
         [
-            (name, module.weight.T.clone())
-            for name, module in network.named_modules()
-            if isinstance(module, Connection)
+            (name, child.weight.T.clone())
+            for name, child in network.named_children()
+            if isinstance(child, Connection) or isinstance(child, nn.Linear)
         ]
     )
     w_min = min([w.min() for w in weights.values()])
@@ -45,4 +43,7 @@ def vis_network(config, parameters):
 
     fig.colorbar(im, ax=axs[-1], orientation="vertical", fraction=0.1)
     fig.tight_layout()
+    fig.savefig(
+        f"{config['log location']}network+{'_'.join(config['individual id'])}.png"
+    )
     plt.show()

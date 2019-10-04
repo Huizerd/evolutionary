@@ -1,12 +1,22 @@
 import torch
 
+from pysnn.network import SNNNetwork
 
-def eval_landing(env, h0, individual):
+from evolutionary.utils.utils import randomize_env
+
+
+def eval_landing(config, env, h0, individual):
+    # Randomize environment
+    env = randomize_env(env, config)
+
     # Minimize three scores: time, height and velocity
     # More specifically: total time to land, final height, final velocity
     t_score, h_score, v_score = 0.0, 0.0, 0.0
 
     for h in h0:
+        # Reset network and env
+        if isinstance(individual[0], SNNNetwork):
+            individual[0].reset_state()
         obs = env.reset(h0=h)
         done = False
 

@@ -100,6 +100,10 @@ class SNN(SNNNetwork):
                 param.data = torch.where(
                     torch.rand_like(param) < mutation_rate, mutation, param
                 )
+            # elif "thresh" in name and not "center" in name:
+            #     print("Thresholds found")
+            # elif "decay" in name:
+            #     print("Decay found")
 
     def _scale_input(self, input):
         return input / self.scale + self.offset

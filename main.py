@@ -49,7 +49,7 @@ def main(config):
     if config["scenario"] == "hover":
         env = QuadHover
         eval = eval_hover
-        obj_idx = ((1, 40), (2, 2))
+        obj_idx = ((1, 100), (2, 2))
         obj_labels = ("air time", "total divergence", "final height offset")
     elif config["scenario"] == "landing":
         env = QuadLanding
@@ -82,7 +82,7 @@ def main(config):
     toolbox.register(
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
-    toolbox.register("evaluate", partial(eval, env, config["env"]["h0"]))
+    toolbox.register("evaluate", partial(eval, config, env, config["env"]["h0"]))
     toolbox.register("mate", crossover_none)
     toolbox.register(
         "mutate", partial(mutate_call_network, mutation_rate=config["mutation rate"])
@@ -123,12 +123,12 @@ def main(config):
     )
     print(logbook.stream)
 
-    # Plot population fitness and its relevant part
-    last_pop = vis_population(population, obj_labels)
-    last_rel = vis_relevant(population, obj_idx, obj_labels)
-
     # Update hall of fame
     hof.update(population)
+
+    # Plot population fitness and its relevant part
+    last_pop = vis_population(population, hof, obj_labels)
+    last_rel = vis_relevant(population, hof, obj_idx, obj_labels)
 
     # Create folders for parameters
     for i in range(0, config["gens"], config["log interval"]):
@@ -139,7 +139,8 @@ def main(config):
 
     # And log the initial performance
     last_pop[0].savefig(f"{config['log location']}population_0.png")
-    last_rel[0].savefig(f"{config['log location']}relevant_0.png")
+    if last_rel is not None:
+        last_rel[0].savefig(f"{config['log location']}relevant_0.png")
     for i, ind in enumerate(population):
         torch.save(
             ind[0].state_dict(),
@@ -207,14 +208,15 @@ def main(config):
         print(logbook.stream)
 
         # Plot population fitness and the relevant part of it
-        last_pop = vis_population(population, obj_labels, last=last_pop)
-        last_rel = vis_relevant(population, obj_idx, obj_labels, last=last_rel)
+        last_pop = vis_population(population, hof, obj_labels, last=last_pop)
+        last_rel = vis_relevant(population, hof, obj_idx, obj_labels, last=last_rel)
 
         # Log every so many generations
         if not gen % config["log interval"] or gen == config["gens"] - 1:
             # Save population figure
             last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
-            last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
+            if last_rel is not None:
+                last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
             # Save parameters of entire population and hall of fame
             for i, ind in enumerate(population):
@@ -238,6 +240,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
     parser.add_argument("--config", type=str, required=True, default=None)
+    parser.add_argument("--tags", type=str, default=None)
     parser.add_argument("--parameters", type=str, default=None)
     args = vars(parser.parse_args())
 
@@ -255,11 +258,21 @@ if __name__ == "__main__":
         os.makedirs(config["log location"])
         # Save config file there for reference
         copyfile(args["config"], config["log location"] + "config.yaml")
+        # Save tags here
+        assert (
+            args["tags"] is not None
+        ), "Provide tags for identifying a run! Prefix with @"
+        with open(config["log location"] + "tags.txt", "w") as f:
+            f.write(args["tags"])
 
     if args["mode"] == "evolve":
         main(config)
     elif args["mode"] == "test":
         assert args["parameters"] is not None, "Provide network parameters for testing!"
+        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
+        config["individual id"] = [
+            s.replace(".net", "") for s in args["parameters"].split("/")[-2:]
+        ]
         vis_network(config, args["parameters"])
         vis_performance(config, args["parameters"])
 

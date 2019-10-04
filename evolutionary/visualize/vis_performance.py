@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from pysnn.neuron import Input, Neuron
+from pysnn.network import SNNNetwork
 
 from gym_quad.envs import QuadHover as QuadBase
 from evolutionary.network.ann import ANN
@@ -12,19 +13,21 @@ from evolutionary.network.snn import SNN
 
 
 def vis_performance(config, parameters):
-    # Build environment with wind, test for various starting altitudes
+    # Build environment, test for various starting altitudes
     # Use regular base QuadHover (no need for modified reward here)
+    # Use some parameters from config (but not all, since some are ranges)
     env = QuadBase(
         delay=3,
         comp_delay_prob=0.0,
         noise=0.1,
         noise_p=0.1,
-        thrust_bounds=(-0.8, 0.5),
+        thrust_bounds=config["env"]["thrust bounds"],
         thrust_tc=0.02,
-        settle=1.0,
-        wind=0.0,
+        settle=config["env"]["settle"],
+        wind=config["env"]["wind"],
+        # wind=0.0,
         h0=5.0,
-        dt=0.02,
+        dt=config["env"]["dt"],
         seed=0,
     )
     h0 = config["env"]["h0"]
@@ -32,10 +35,8 @@ def vis_performance(config, parameters):
     # Load network
     if config["network"] == "ANN":
         network = ANN(2, config["hidden size"], 1)
-        vis_neurons = True
     elif config["network"] == "SNN":
         network = SNN(2, config["hidden size"], 1, config)
-        vis_neurons = True
     else:
         raise KeyError("Not a valid network key!")
 
@@ -43,6 +44,9 @@ def vis_performance(config, parameters):
 
     # Go over all heights we trained for
     for h in h0:
+        # Reset network and env
+        if isinstance(network, SNNNetwork):
+            network.reset_state()
         obs = env.reset(h0=h)
         done = False
 
@@ -56,8 +60,8 @@ def vis_performance(config, parameters):
         neuron_dict = OrderedDict(
             [
                 (name, {"trace": [], "volt": [], "spike": [], "thresh": []})
-                for name, module in network.named_modules()
-                if isinstance(module, Input) or isinstance(module, Neuron)
+                for name, child in network.named_children()
+                if isinstance(child, Input) or isinstance(child, Neuron)
             ]
         )
 
@@ -70,18 +74,18 @@ def vis_performance(config, parameters):
 
             # Log neurons
             # TODO: spike state is being reset before logging, so no use
-            for name, module in network.named_modules():
+            for name, child in network.named_children():
                 if name in neuron_dict:
                     neuron_dict[name]["trace"].append(
-                        module.trace.T.view(-1).clone().numpy()
+                        child.trace.T.view(-1).clone().numpy()
                     )
                     neuron_dict[name]["volt"].append(
-                        module.v_cell.T.view(-1).clone().numpy()
-                    ) if hasattr(module, "v_cell") else None
-                    # neuron_dict[name]["spike"].append(module.spiking().view(-1).clone().numpy()) if hasattr(module, "spiking") else None
+                        child.v_cell.T.view(-1).clone().numpy()
+                    ) if hasattr(child, "v_cell") else None
+                    # neuron_dict[name]["spike"].append(child.spiking().view(-1).clone().numpy()) if hasattr(child, "spiking") else None
                     neuron_dict[name]["thresh"].append(
-                        module.thresh.T.view(-1).clone().numpy()
-                    ) if hasattr(module, "thresh") else None
+                        child.thresh.T.view(-1).clone().numpy()
+                    ) if hasattr(child, "thresh") else None
 
             # Step the environment
             obs = torch.from_numpy(obs)
@@ -103,9 +107,12 @@ def vis_performance(config, parameters):
         plt.legend()
         plt.grid()
         plt.tight_layout()
+        plt.savefig(
+            f"{config['log location']}performance+{'_'.join(config['individual id'])}+{int(h)}m.png"
+        )
 
         # Plot neurons
-        if vis_neurons:
+        if isinstance(network, SNNNetwork):
             fig, ax = plt.subplots(config["hidden size"], 3, figsize=(10, 10))
             for i, (name, recordings) in enumerate(neuron_dict.items()):
                 for var, vals in recordings.items():
@@ -118,5 +125,8 @@ def vis_performance(config, parameters):
                             # ax[j, i].legend()
 
             fig.tight_layout()
+            fig.savefig(
+                f"{config['log location']}neurons+{'_'.join(config['individual id'])}+{int(h)}m.png"
+            )
 
         plt.show()

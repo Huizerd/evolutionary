@@ -3,19 +3,8 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_relevant(population, obj_idx, obj_labels, last=None):
-    # Create figure and axis if not there, else unpack
-    if last is None:
-        plt.ion()
-        fig = plt.figure(dpi=200)
-        ax = fig.add_subplot(111)
-    else:
-        fig, ax = last
-
-    # Clear axis
-    ax.cla()
-
-    # Get relevant fitness values and plot
+def vis_relevant(population, hof, obj_idx, obj_labels, last=None):
+    # Get relevant fitness values
     fitnesses = np.array(
         [
             ind.fitness.values + (i,)
@@ -24,12 +13,41 @@ def vis_relevant(population, obj_idx, obj_labels, last=None):
             and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
         ]
     )
+    fitnesses_hof = np.array(
+        [
+            ind.fitness.values + (i,)
+            for i, ind in enumerate(hof)
+            if ind.fitness.values[obj_idx[0][0]] < obj_idx[0][1]
+            and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
+        ]
+    )
+
+    # Create figure and axis if not there, else unpack or leave
+    # We had no figure and want one
+    if last is None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
+        plt.ion()
+        fig = plt.figure(dpi=200)
+        ax = fig.add_subplot(111)
+    # We had a figure and want to use the same
+    elif last is not None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
+        fig, ax = last
+    # We had a figure and don't want to update it
+    elif last is not None and (fitnesses.size == 0 and fitnesses_hof.size == 0):
+        return last
+    # We had no figure and don't want one
+    else:
+        return None
+
+    # Clear axis
+    ax.cla()
+
+    # Plot the fitnesses
     if fitnesses.size > 0:
         ax.scatter(fitnesses[:, obj_idx[0][0]], fitnesses[:, obj_idx[1][0]])
-    else:
-        return fig, ax
+    if fitnesses_hof.size > 0:
+        ax.scatter(fitnesses_hof[:, obj_idx[0][0]], fitnesses_hof[:, obj_idx[1][0]])
 
-    # Annotate
+    # Annotate only population for now
     for i in range(fitnesses.shape[0]):
         ax.text(
             fitnesses[i, obj_idx[0][0]],
@@ -52,7 +70,7 @@ def vis_relevant(population, obj_idx, obj_labels, last=None):
     return fig, ax
 
 
-def vis_population(population, obj_labels, last=None):
+def vis_population(population, hof, obj_labels, last=None):
     # Create figure and axis if not there, else unpack
     if last is None:
         plt.ion()
@@ -66,9 +84,11 @@ def vis_population(population, obj_labels, last=None):
 
     # Get all fitness values and plot
     fitnesses = np.array([ind.fitness.values for ind in population])
+    fitnesses_hof = np.array([ind.fitness.values for ind in hof])
     ax.scatter(fitnesses[:, 0], fitnesses[:, 1], fitnesses[:, 2])
+    ax.scatter(fitnesses_hof[:, 0], fitnesses_hof[:, 1], fitnesses_hof[:, 2])
 
-    # Annotate
+    # Annotate only population for now
     for i in range(fitnesses.shape[0]):
         ax.text(fitnesses[i, 0], fitnesses[i, 1], fitnesses[i, 2], str(i))
 
