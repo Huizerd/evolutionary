@@ -1,11 +1,11 @@
 log location: logs/
-log interval: 10
+log interval: 25
 gens: 250
 pop size: 100
 mutation rate: 0.3
 network: SNN
 hidden size: 8
-scenario: hover
+scenario: landing
 env:
   delay: [3, 6]
   comp delay prob: 0.0

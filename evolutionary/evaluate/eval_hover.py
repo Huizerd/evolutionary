@@ -26,11 +26,13 @@ def eval_hover(config, env, h0, individual):
             action = action.numpy()
             obs, div, done, _ = env.step(action)
             # Increment divergence score each step
-            d_score += div
+            d_score += abs(div)
 
         # Increment other scores
         # Subtract t_score because we use weights of -1.0 for all objectives
         t_score -= env.t
         h_score += abs(h - env.state[0])
 
-    return t_score, d_score, h_score
+    # Decrease importance of divergence score
+    # TODO: or do this via weights in DEAP?
+    return t_score, d_score / 4, h_score

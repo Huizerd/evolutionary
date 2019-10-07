@@ -2,12 +2,12 @@ import argparse
 import datetime, time
 import os
 import random
-import yaml
 from functools import partial
 from itertools import chain
 from shutil import copyfile
 
 import torch
+import yaml
 import numpy as np
 import pandas as pd
 from deap import base, creator, tools
@@ -49,7 +49,7 @@ def main(config):
     if config["scenario"] == "hover":
         env = QuadHover
         eval = eval_hover
-        obj_idx = ((1, 100), (2, 2))
+        obj_idx = ((1, 50), (2, 2))
         obj_labels = ("air time", "total divergence", "final height offset")
     elif config["scenario"] == "landing":
         env = QuadLanding
@@ -192,7 +192,8 @@ def main(config):
 
         # Update the hall of fame with the offspring,
         # so we get the best of population + offspring in there
-        hof.update(offspring)
+        # Population again since we re-evaluated it
+        hof.update(population + offspring)
 
         # Select the population for the next generation
         # from the last generation and its offspring

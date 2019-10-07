@@ -12,5 +12,6 @@ setup(
         "pre-commit",
         "dask[bag]",
         "pandas",
+        "pyyaml",
     ],
 )

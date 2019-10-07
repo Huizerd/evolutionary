@@ -22,7 +22,6 @@ def vis_network(config, parameters):
     network.load_state_dict(torch.load(parameters))
 
     # Collect weights based on module being a connection or not
-    # TODO: adapt for ANNs?
     weights = OrderedDict(
         [
             (name, child.weight.T.clone())

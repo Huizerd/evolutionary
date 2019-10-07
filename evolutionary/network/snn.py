@@ -94,12 +94,16 @@ class SNN(SNNNetwork):
                 # Uniform in range [-w - 0.05, 2w + 0.05]
                 # No idea why this range
                 # TODO: is this a correct/efficient way to replace all data in a tensor?
-                mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
+                mutation = (3.0 * torch.rand_like(param) - 1.0) * param.abs() + (
                     2.0 * torch.rand_like(param) - 1.0
                 ) * 0.05
                 param.data = torch.where(
                     torch.rand_like(param) < mutation_rate, mutation, param
                 )
+            elif "delay" in name:
+                mutation = torch.randint_like(param, -1, 2)
+                param += mutation
+                param.clamp_(min=0)
             # elif "thresh" in name and not "center" in name:
             #     print("Thresholds found")
             # elif "decay" in name:

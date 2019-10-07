@@ -15,20 +15,19 @@ from evolutionary.network.snn import SNN
 def vis_performance(config, parameters):
     # Build environment, test for various starting altitudes
     # Use regular base QuadHover (no need for modified reward here)
-    # Use some parameters from config (but not all, since some are ranges)
+    # Use most parameters from config (where a range was given, we take the lower bound)
     env = QuadBase(
-        delay=3,
+        delay=config["env"]["delay"][0],
         comp_delay_prob=0.0,
-        noise=0.1,
-        noise_p=0.1,
+        noise=config["env"]["noise"][0],
+        noise_p=config["env"]["noise p"][0],
         thrust_bounds=config["env"]["thrust bounds"],
-        thrust_tc=0.02,
+        thrust_tc=config["env"]["thrust tc"][0],
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],
-        # wind=0.0,
-        h0=5.0,
+        h0=config["env"]["h0"][0],
         dt=config["env"]["dt"],
-        seed=0,
+        seed=None,
     )
     h0 = config["env"]["h0"]
 
