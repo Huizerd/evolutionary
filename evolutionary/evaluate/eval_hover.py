@@ -21,12 +21,13 @@ def eval_hover(config, env, h0, individual):
         done = False
 
         while not done:
+            # Step the environment
             obs = torch.from_numpy(obs)
             action = individual[0].forward(obs.view(1, 1, -1))
             action = action.numpy()
             obs, div, done, _ = env.step(action)
             # Increment divergence score each step
-            d_score += abs(div)
+            d_score += div
 
         # Increment other scores
         # Subtract t_score because we use weights of -1.0 for all objectives

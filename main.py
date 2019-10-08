@@ -49,7 +49,7 @@ def main(config):
     if config["scenario"] == "hover":
         env = QuadHover
         eval = eval_hover
-        obj_idx = ((1, 50), (2, 2))
+        obj_idx = ((1, 100), (2, 5))
         obj_labels = ("air time", "total divergence", "final height offset")
     elif config["scenario"] == "landing":
         env = QuadLanding
@@ -85,7 +85,10 @@ def main(config):
     toolbox.register("evaluate", partial(eval, config, env, config["env"]["h0"]))
     toolbox.register("mate", crossover_none)
     toolbox.register(
-        "mutate", partial(mutate_call_network, mutation_rate=config["mutation rate"])
+        "mutate",
+        partial(
+            mutate_call_network, config["genes"], mutation_rate=config["mutation rate"]
+        ),
     )
     toolbox.register("select", tools.selNSGA2)
     toolbox.register("map", dask_map)  # for Dask
@@ -232,7 +235,7 @@ def main(config):
 
             # Save logbook
             pd.DataFrame(logbook).to_csv(
-                f"{config['log location']}logbook.tsv", sep="\t", index=False
+                f"{config['log location']}logbook.txt", sep="\t", index=False
             )
 
 
@@ -241,7 +244,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
     parser.add_argument("--config", type=str, required=True, default=None)
-    parser.add_argument("--tags", type=str, default=None)
+    parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", type=str, default=None)
     args = vars(parser.parse_args())
 
@@ -264,7 +267,7 @@ if __name__ == "__main__":
             args["tags"] is not None
         ), "Provide tags for identifying a run! Prefix with @"
         with open(config["log location"] + "tags.txt", "w") as f:
-            f.write(args["tags"])
+            f.write(" ".join(args["tags"]))
 
     if args["mode"] == "evolve":
         main(config)

@@ -49,10 +49,6 @@ class SNN(SNNNetwork):
         self.output_bounds = [b * 9.81 for b in config["env"]["thrust bounds"]]
         self.method = config["snn"]["decoding"]
 
-        # Connections
-        self.fc1 = Linear(inputs, hidden, *c_dynamics)
-        self.fc2 = Linear(hidden, outputs, *c_dynamics)
-
         # Neurons
         self.neuron0 = InputTraceLinear(
             (config["snn"]["batch size"], 1, inputs), *n_in_dynamics
@@ -64,6 +60,10 @@ class SNN(SNNNetwork):
             (config["snn"]["batch size"], 1, outputs), *n_dynamics
         )
 
+        # Connections
+        self.fc1 = Linear(inputs, hidden, *c_dynamics)
+        self.fc2 = Linear(hidden, outputs, *c_dynamics)
+
         # NOTE: usage of decays instead of taus implies linear neurons!
         assert (
             "voltage decay" in config["snn"]
@@ -72,25 +72,33 @@ class SNN(SNNNetwork):
             and isinstance(self.neuron2, LIFNeuronTraceLinear)
         )
 
-    def forward(self, input):
+    def forward(self, x):
         # Input layer: encoding
-        input = self._encode(input)
-        x, t = self.neuron0(input)
+        x = self._encode(x)
+        spikes, trace = self.neuron0(x)
 
         # Hidden layer
-        x = self.fc1(x, t)
-        spikes, t = self.neuron1(x)
+        x, _ = self.fc1(spikes, trace)
+        spikes, trace = self.neuron1(x)
 
         # Output layer
-        x = self.fc2(spikes, t)
-        spikes, t = self.neuron2(x)
+        x, _ = self.fc2(spikes, trace)
+        spikes, trace = self.neuron2(x)
 
-        return self._decode(spikes, t)
+        return self._decode(spikes, trace)
 
-    def mutate(self, mutation_rate=1.0):
+    def mutate(self, genes, mutation_rate=1.0):
+        # for gene in genes:
+        #     for child in self.children():
+        #         if hasattr(child, gene):
+        #             if gene == "weight":
+        #                 weight = getattr(child, gene)
+        #                 mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
+        #                 # TODO: does this change connection.weight as well? Destroy its Parameter status?
+        #                 weight = torch.where(torch.rand_like(weight) < mutation_rate, mutation, weight)
         # Go over all parameters
         for name, param in self.named_parameters():
-            if "weight" in name:
+            if "weight" in name and "weight" in genes:
                 # Uniform in range [-w - 0.05, 2w + 0.05]
                 # No idea why this range
                 # TODO: is this a correct/efficient way to replace all data in a tensor?
@@ -100,10 +108,14 @@ class SNN(SNNNetwork):
                 param.data = torch.where(
                     torch.rand_like(param) < mutation_rate, mutation, param
                 )
-            elif "delay" in name:
-                mutation = torch.randint_like(param, -1, 2)
-                param += mutation
-                param.clamp_(min=0)
+                # mutation = torch.empty_like(param).uniform_(-2, 2) * param
+                # param += mutation * (torch.rand_like(param) < mutation_rate).float()
+            elif "thresh" in name and "thresh" in genes:
+                pass
+            # elif "delay" in name:
+            #     mutation = torch.randint_like(param, -1, 2)
+            #     param += mutation
+            #     param.clamp_(min=0)
             # elif "thresh" in name and not "center" in name:
             #     print("Thresholds found")
             # elif "decay" in name:

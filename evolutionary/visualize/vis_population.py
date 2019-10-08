@@ -26,8 +26,7 @@ def vis_relevant(population, hof, obj_idx, obj_labels, last=None):
     # We had no figure and want one
     if last is None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
         plt.ion()
-        fig = plt.figure(dpi=200)
-        ax = fig.add_subplot(111)
+        fig, ax = plt.subplots(1, 1, dpi=200)
     # We had a figure and want to use the same
     elif last is not None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
         fig, ax = last
@@ -47,12 +46,19 @@ def vis_relevant(population, hof, obj_idx, obj_labels, last=None):
     if fitnesses_hof.size > 0:
         ax.scatter(fitnesses_hof[:, obj_idx[0][0]], fitnesses_hof[:, obj_idx[1][0]])
 
-    # Annotate only population for now
+    # Annotate
     for i in range(fitnesses.shape[0]):
         ax.text(
             fitnesses[i, obj_idx[0][0]],
             fitnesses[i, obj_idx[1][0]],
             str(int(fitnesses[i, 3])),
+        )
+    for i in range(fitnesses_hof.shape[0]):
+        ax.text(
+            fitnesses_hof[i, obj_idx[0][0]],
+            fitnesses_hof[i, obj_idx[1][0]],
+            str(int(fitnesses_hof[i, 3])),
+            va="top",
         )
 
     # Decorate figure

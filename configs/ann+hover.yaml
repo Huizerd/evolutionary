@@ -3,6 +3,7 @@ log interval: 25
 gens: 250
 pop size: 100
 mutation rate: 0.3
+genes: ["weight"]
 network: ANN
 hidden size: 8
 scenario: hover

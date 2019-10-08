@@ -21,6 +21,7 @@ def eval_landing(config, env, h0, individual):
         done = False
 
         while not done:
+            # Step the environment
             obs = torch.from_numpy(obs)
             action = individual[0].forward(obs.view(1, 1, -1))
             action = action.numpy()

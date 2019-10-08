@@ -72,7 +72,6 @@ def vis_performance(config, parameters):
             time_list.append(env.t)
 
             # Log neurons
-            # TODO: spike state is being reset before logging, so no use
             for name, child in network.named_children():
                 if name in neuron_dict:
                     neuron_dict[name]["trace"].append(
@@ -81,7 +80,9 @@ def vis_performance(config, parameters):
                     neuron_dict[name]["volt"].append(
                         child.v_cell.T.view(-1).clone().numpy()
                     ) if hasattr(child, "v_cell") else None
-                    # neuron_dict[name]["spike"].append(child.spiking().view(-1).clone().numpy()) if hasattr(child, "spiking") else None
+                    neuron_dict[name]["spike"].append(
+                        child.spikes.view(-1).clone().numpy()
+                    ) if hasattr(child, "spikes") else None
                     neuron_dict[name]["thresh"].append(
                         child.thresh.T.view(-1).clone().numpy()
                     ) if hasattr(child, "thresh") else None
