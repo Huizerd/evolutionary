@@ -1,17 +1,17 @@
 log location: logs/
-log interval: 25
+log interval: 10
 gens: 250
 pop size: 100
 mutation rate: 0.3
-genes: ["weight"]
+genes: ["weight", "bias"]
 network: ANN
 hidden size: 8
 scenario: hover
 env:
-  delay: [1, 6]
+  delay: [3, 6]
   comp delay prob: 0.0
-  noise: [0.0, 0.15]
-  noise p: [0.0, 0.25]
+  noise: [0.1, 0.15]
+  noise p: [0.1, 0.25]
   thrust bounds: [-0.8, 0.5]  # in G's
   thrust tc: [0.02, 0.1]
   settle: 1.0

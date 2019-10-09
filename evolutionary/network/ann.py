@@ -23,20 +23,22 @@ class ANN(nn.Module):
         x = F.relu(self.fc1(x))
         return self.fc2(x)
 
-    def mutate(self, mutation_rate=1.0):
+    def mutate(self, genes, mutation_rate=1.0):
         # Go over all weights and biases
-        for param in self.parameters():
-            # Create mask for mutation rate
-
-            # Uniform in range [-w - 0.05, 2w + 0.05]
-            # No idea why this range
-            # TODO: is this a correct/efficient way to replace all data in a tensor?
-            mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
-                2.0 * torch.rand_like(param) - 1.0
-            ) * 0.05
-            param.data = torch.where(
-                torch.rand_like(param) < mutation_rate, mutation, param
-            )
+        for name, param in self.named_parameters():
+            if ("weight" in name and "weight" in genes) or (
+                "bias" in name and "bias" in genes
+            ):
+                # Uniform in range [-w - 0.05, 2w + 0.05]
+                # No idea why this range
+                # TODO: is this a correct/efficient way to replace all data in a tensor?
+                # TODO: I think .data is still needed here? Test!
+                mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
+                    2.0 * torch.rand_like(param) - 1.0
+                ) * 0.05
+                param.data = torch.where(
+                    torch.rand_like(param) < mutation_rate, mutation, param
+                )
 
 
 class ANNkirk:

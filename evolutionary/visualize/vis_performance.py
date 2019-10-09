@@ -75,16 +75,16 @@ def vis_performance(config, parameters):
             for name, child in network.named_children():
                 if name in neuron_dict:
                     neuron_dict[name]["trace"].append(
-                        child.trace.T.view(-1).clone().numpy()
+                        child.trace.detach().clone().view(-1).numpy()
                     )
                     neuron_dict[name]["volt"].append(
-                        child.v_cell.T.view(-1).clone().numpy()
+                        child.v_cell.detach().clone().view(-1).numpy()
                     ) if hasattr(child, "v_cell") else None
                     neuron_dict[name]["spike"].append(
-                        child.spikes.view(-1).clone().numpy()
+                        child.spikes.detach().clone().view(-1).numpy()
                     ) if hasattr(child, "spikes") else None
                     neuron_dict[name]["thresh"].append(
-                        child.thresh.T.view(-1).clone().numpy()
+                        child.thresh.detach().clone().view(-1).numpy()
                     ) if hasattr(child, "thresh") else None
 
             # Step the environment
