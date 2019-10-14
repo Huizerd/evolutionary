@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_relevant(population, hof, obj_idx, obj_labels, last=None):
+def vis_relevant(population, hof, obj_idx, obj_labels, no_plot=False, last=None):
     # Get relevant fitness values
     fitnesses = np.array(
         [
@@ -70,13 +70,14 @@ def vis_relevant(population, hof, obj_idx, obj_labels, last=None):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    fig.canvas.draw()
-    fig.canvas.flush_events()
+    if not no_plot:
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
     return fig, ax
 
 
-def vis_population(population, hof, obj_labels, last=None):
+def vis_population(population, hof, obj_labels, no_plot=False, last=None):
     # Create figure and axis if not there, else unpack
     if last is None:
         plt.ion()
@@ -108,7 +109,8 @@ def vis_population(population, hof, obj_labels, last=None):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    fig.canvas.draw()
-    fig.canvas.flush_events()
+    if not no_plot:
+        fig.canvas.draw()
+        fig.canvas.flush_events()
 
     return fig, ax

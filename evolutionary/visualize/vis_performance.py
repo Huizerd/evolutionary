@@ -12,7 +12,7 @@ from evolutionary.network.ann import ANN
 from evolutionary.network.snn import SNN
 
 
-def vis_performance(config, parameters):
+def vis_performance(config, parameters, debug=False, no_plot=False):
     # Build environment, test for various starting altitudes
     # Use regular base QuadHover (no need for modified reward here)
     # Use most parameters from config (where a range was given, we take the lower bound)
@@ -103,13 +103,18 @@ def vis_performance(config, parameters):
         # plt.plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
         plt.xlabel("Time")
         plt.title(f"Performance starting from {h} m")
-        plt.ylim(-1, env.MAX_H + 1)
+        if config["scenario"] == "landing":
+            plt.ylim(-5, env.MAX_H + 1)
+        else:
+            plt.ylim(-1, env.MAX_H + 1)
         plt.legend()
         plt.grid()
         plt.tight_layout()
-        plt.savefig(
-            f"{config['log location']}performance+{'_'.join(config['individual id'])}+{int(h)}m.png"
-        )
+
+        if not debug:
+            plt.savefig(
+                f"{config['log location']}performance+{'_'.join(config['individual id'])}+{int(h)}m.png"
+            )
 
         # Plot neurons
         if isinstance(network, SNNNetwork):
@@ -120,13 +125,13 @@ def vis_performance(config, parameters):
                         for j in range(np.array(vals).shape[1]):
                             ax[j, i].plot(time_list, np.array(vals)[:, j], label=var)
                             ax[j, i].grid(True)
-                            # ax[j, i].set_title(f"{name}: {j}")
-                            # ax[j, i].set_xlabel("Time")
-                            # ax[j, i].legend()
 
             fig.tight_layout()
-            fig.savefig(
-                f"{config['log location']}neurons+{'_'.join(config['individual id'])}+{int(h)}m.png"
-            )
 
-        plt.show()
+            if not debug:
+                fig.savefig(
+                    f"{config['log location']}neurons+{'_'.join(config['individual id'])}+{int(h)}m.png"
+                )
+
+        if not no_plot:
+            plt.show()

@@ -5,7 +5,7 @@ pop size: 100
 mutation rate: 0.3
 genes: ["weight"]
 network: SNN
-hidden size: 8
+hidden size: 4
 scenario: hover
 env:
   delay: [3, 6]
@@ -20,22 +20,21 @@ env:
   dt: 0.02
   seeds: 100
 snn:
+  # Lists: 3 elements for parameters concerning all neurons, 2 for those concerning spiking neurons
   time: 50  # not used (properly)
-  intensity: 128  # not used
-  n samples: 20  # not used
   batch size: 1  # always 1 I guess
-  thresh: 0.8
-  v rest: 0.0
-  alpha v: 0.2
-  alpha t: 1.0
-  tau v: 5
-  tau t: 5
-  voltage decay: 0.8  # taus are used for exponential neurons, decays for linear ones
-  trace decay: 0.8
-  duration refrac: 1
+  thresh: [0.8, 0.8]
+  v rest: [0.0, 0.0]
+  alpha v: [0.2, 0.2]
+  alpha t: [0.4, 0.4, 0.2]
+  tau v: [5, 5]
+  tau t: [5, 5, 5]
+  voltage decay: [0.8, 0.8]  # taus are used for exponential neurons, decays for linear ones
+  trace decay: [0.9, 0.9, 0.95]
+  duration refrac: [0, 0]
   dt: 1
   delay: 0
   scale: 10.0
   offset: 1.0
-  max trace: 1.0
+  max trace: 1.0  # find proper value for this!
   decoding: trace

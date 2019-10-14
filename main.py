@@ -34,7 +34,7 @@ creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))
 creator.create("Individual", list, fitness=creator.Fitness)
 
 
-def main(config):
+def main(config, debug=False, no_plot=False):
     # Don't bother with determinism since tournament is stochastic!
 
     # Build network
@@ -129,26 +129,29 @@ def main(config):
     # Update hall of fame
     hof.update(population)
 
-    # Plot population fitness and its relevant part
-    last_pop = vis_population(population, hof, obj_labels)
-    last_rel = vis_relevant(population, hof, obj_idx, obj_labels)
+    if not debug:
+        # Plot population fitness and its relevant part
+        last_pop = vis_population(population, hof, obj_labels, no_plot=no_plot)
+        last_rel = vis_relevant(population, hof, obj_idx, obj_labels, no_plot=no_plot)
 
-    # Create folders for parameters
-    for i in range(0, config["gens"], config["log interval"]):
-        os.makedirs(f"{config['log location']}parameters_{i}/")
-    if not os.path.exists(f"{config['log location']}parameters_{config['gens'] - 1}/"):
-        os.makedirs(f"{config['log location']}parameters_{config['gens'] - 1}/")
-    os.makedirs(f"{config['log location']}hof/")
+        # Create folders for parameters
+        for i in range(0, config["gens"], config["log interval"]):
+            os.makedirs(f"{config['log location']}parameters_{i}/")
+        if not os.path.exists(
+            f"{config['log location']}parameters_{config['gens'] - 1}/"
+        ):
+            os.makedirs(f"{config['log location']}parameters_{config['gens'] - 1}/")
+        os.makedirs(f"{config['log location']}hof/")
 
-    # And log the initial performance
-    last_pop[0].savefig(f"{config['log location']}population_0.png")
-    if last_rel is not None:
-        last_rel[0].savefig(f"{config['log location']}relevant_0.png")
-    for i, ind in enumerate(population):
-        torch.save(
-            ind[0].state_dict(),
-            f"{config['log location']}parameters_0/individual_{i}.net",
-        )
+        # And log the initial performance
+        last_pop[0].savefig(f"{config['log location']}population_0.png")
+        if last_rel is not None:
+            last_rel[0].savefig(f"{config['log location']}relevant_0.png")
+        for i, ind in enumerate(population):
+            torch.save(
+                ind[0].state_dict(),
+                f"{config['log location']}parameters_0/individual_{i}.net",
+            )
 
     # Begin the evolution!
     for gen in range(1, config["gens"]):
@@ -211,38 +214,45 @@ def main(config):
         )
         print(logbook.stream)
 
-        # Plot population fitness and the relevant part of it
-        last_pop = vis_population(population, hof, obj_labels, last=last_pop)
-        last_rel = vis_relevant(population, hof, obj_idx, obj_labels, last=last_rel)
-
-        # Log every so many generations
-        if not gen % config["log interval"] or gen == config["gens"] - 1:
-            # Save population figure
-            last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
-            if last_rel is not None:
-                last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
-
-            # Save parameters of entire population and hall of fame
-            for i, ind in enumerate(population):
-                torch.save(
-                    ind[0].state_dict(),
-                    f"{config['log location']}parameters_{gen}/individual_{i}.net",
-                )
-            for i, ind in enumerate(hof):
-                torch.save(
-                    ind[0].state_dict(), f"{config['log location']}hof/hof_{i}.net"
-                )
-
-            # Save logbook
-            pd.DataFrame(logbook).to_csv(
-                f"{config['log location']}logbook.txt", sep="\t", index=False
+        if not debug:
+            # Plot population fitness and the relevant part of it
+            last_pop = vis_population(
+                population, hof, obj_labels, last=last_pop, no_plot=no_plot
             )
+            last_rel = vis_relevant(
+                population, hof, obj_idx, obj_labels, last=last_rel, no_plot=no_plot
+            )
+
+            # Log every so many generations
+            if not gen % config["log interval"] or gen == config["gens"] - 1:
+                # Save population figure
+                last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+                if last_rel is not None:
+                    last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
+
+                # Save parameters of entire population and hall of fame
+                for i, ind in enumerate(population):
+                    torch.save(
+                        ind[0].state_dict(),
+                        f"{config['log location']}parameters_{gen}/individual_{i}.net",
+                    )
+                for i, ind in enumerate(hof):
+                    torch.save(
+                        ind[0].state_dict(), f"{config['log location']}hof/hof_{i}.net"
+                    )
+
+                # Save logbook
+                pd.DataFrame(logbook).to_csv(
+                    f"{config['log location']}logbook.txt", sep="\t", index=False
+                )
 
 
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
+    parser.add_argument("--debug", action="store_true")
+    parser.add_argument("--noplot", action="store_true")
     parser.add_argument("--config", type=str, required=True, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", type=str, default=None)
@@ -258,7 +268,11 @@ if __name__ == "__main__":
         "%Y-%m-%d_%H:%M:%S"
     )
     config["log location"] += timestamp + "/"
-    if not os.path.exists(config["log location"]) and args["mode"] == "evolve":
+    if (
+        not os.path.exists(config["log location"])
+        and args["mode"] == "evolve"
+        and not args["debug"]
+    ):
         os.makedirs(config["log location"])
         # Save config file there for reference
         copyfile(args["config"], config["log location"] + "config.yaml")
@@ -270,14 +284,14 @@ if __name__ == "__main__":
             f.write(" ".join(args["tags"]))
 
     if args["mode"] == "evolve":
-        main(config)
+        main(config, args["debug"], args["noplot"])
     elif args["mode"] == "test":
         assert args["parameters"] is not None, "Provide network parameters for testing!"
         config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
         config["individual id"] = [
             s.replace(".net", "") for s in args["parameters"].split("/")[-2:]
         ]
-        vis_network(config, args["parameters"])
-        vis_performance(config, args["parameters"])
+        vis_network(config, args["parameters"], args["debug"], args["noplot"])
+        vis_performance(config, args["parameters"], args["debug"], args["noplot"])
 
     print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

@@ -17,20 +17,30 @@ class SNN(SNNNetwork):
         super(SNN, self).__init__()
 
         # Get configuration parameters for connections and neurons
-        n_dynamics = [
-            config["snn"]["thresh"],
-            config["snn"]["v rest"],
-            config["snn"]["alpha v"],
-            config["snn"]["alpha t"],
-            config["snn"]["dt"],
-            config["snn"]["duration refrac"],
-            config["snn"]["voltage decay"],
-            config["snn"]["trace decay"],
-        ]
         n_in_dynamics = [
             config["snn"]["dt"],
-            config["snn"]["alpha t"],
-            config["snn"]["trace decay"],
+            config["snn"]["alpha t"][0],
+            config["snn"]["trace decay"][0],
+        ]
+        n_hid_dynamics = [
+            config["snn"]["thresh"][0],
+            config["snn"]["v rest"][0],
+            config["snn"]["alpha v"][0],
+            config["snn"]["alpha t"][1],
+            config["snn"]["dt"],
+            config["snn"]["duration refrac"][0],
+            config["snn"]["voltage decay"][0],
+            config["snn"]["trace decay"][1],
+        ]
+        n_out_dynamics = [
+            config["snn"]["thresh"][1],
+            config["snn"]["v rest"][1],
+            config["snn"]["alpha v"][1],
+            config["snn"]["alpha t"][2],
+            config["snn"]["dt"],
+            config["snn"]["duration refrac"][1],
+            config["snn"]["voltage decay"][1],
+            config["snn"]["trace decay"][2],
         ]
         c_dynamics = [
             config["snn"]["batch size"],
@@ -53,11 +63,14 @@ class SNN(SNNNetwork):
         self.neuron0 = InputTraceLinear(
             (config["snn"]["batch size"], 1, inputs), *n_in_dynamics
         )
+        # self.neuron0 = LIFNeuronTraceLinear(
+        #     (config["snn"]["batch size"], 1, inputs), *n_hid_dynamics
+        # )
         self.neuron1 = LIFNeuronTraceLinear(
-            (config["snn"]["batch size"], 1, hidden), *n_dynamics
+            (config["snn"]["batch size"], 1, hidden), *n_hid_dynamics
         )
         self.neuron2 = LIFNeuronTraceLinear(
-            (config["snn"]["batch size"], 1, outputs), *n_dynamics
+            (config["snn"]["batch size"], 1, outputs), *n_out_dynamics
         )
 
         # Connections
@@ -68,6 +81,7 @@ class SNN(SNNNetwork):
         assert (
             "voltage decay" in config["snn"]
             and isinstance(self.neuron0, InputTraceLinear)
+            # and isinstance(self.neuron0, LIFNeuronTraceLinear)
             and isinstance(self.neuron1, LIFNeuronTraceLinear)
             and isinstance(self.neuron2, LIFNeuronTraceLinear)
         )
@@ -96,25 +110,43 @@ class SNN(SNNNetwork):
         #                 mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
         #                 # TODO: does this change connection.weight as well? Destroy its Parameter status?
         #                 weight = torch.where(torch.rand_like(weight) < mutation_rate, mutation, weight)
+        # for child in self.children():
+        #     if hasattr(child, "voltage_decay"):
+        #         param = getattr(child, "voltage_decay")
+        #         if torch.rand(1).item() < mutation_rate:
+        #             param.uniform_(0.1, 0.9)  # works!
+        #             # param.data = torch.rand_like(param)  # works!
+        #             # param = torch.rand_like(param)  # doesn't work
+        #     if hasattr(child, "trace_decay"):
+        #         param = getattr(child, "trace_decay")
+        #         if torch.rand(1).item() < mutation_rate:
+        #             param.uniform_(0.1, 0.9)  # works!
+        # if hasattr(child, "delay_init"):
+        #     param = getattr(child, "delay_init")
+        #     assert param is not None, "Initial delay should be at least 1!"
+        #     param += torch.randint_like(param, -2, 2) * (torch.rand_like(param) < mutation_rate).float()
+        #     param.clamp_(min=1)
+
         # Go over all parameters
         for name, param in self.named_parameters():
             if "weight" in name and "weight" in genes:
                 # Uniform in range [-w - 0.05, 2w + 0.05]
                 # No idea why this range
                 # TODO: is this a correct/efficient way to replace all data in a tensor?
-                # TODO: I think .data is still needed here? Test!
                 mutation = (3.0 * torch.rand_like(param) - 1.0) * param.abs() + (
                     2.0 * torch.rand_like(param) - 1.0
                 ) * 0.05
+                # .data is needed here!
                 param.data = torch.where(
                     torch.rand_like(param) < mutation_rate, mutation, param
                 )
-                # mutation = torch.empty_like(param).uniform_(-2, 2) * param
+                # mutation = torch.empty_like(param).uniform_(-1, 1)
                 # param += mutation * (torch.rand_like(param) < mutation_rate).float()
-            elif "thresh" in name and "thresh" in genes:
-                mutation = torch.empty_like(param).uniform_(-0.1, 0.1)
-                param += mutation * (torch.rand_like(param) < mutation_rate).float()
-                param.clamp_(min=0)
+                # param.clamp_(0, 1)
+            # elif "thresh" in name and "thresh" in genes:
+            #     mutation = torch.empty_like(param).uniform_(-0.1, 0.1)
+            #     param += mutation * (torch.rand_like(param) < mutation_rate).float()
+            #     param.clamp_(min=0)
             # elif "delay" in name:
             #     mutation = torch.randint_like(param, -1, 2)
             #     param += mutation
