@@ -153,6 +153,7 @@ def main(config, debug=False, no_plot=False):
         # Tournament below needs others to be a multiple of 4,
         # so extend with already selected individuals
         if len(others) % 4:
+            # TODO: can get error because selection is very small (1), below number of extra needed for others
             others.extend(random.sample(selection, 4 - (len(others) % 4)))
 
         # Extend the selection based on a tournament played by the others

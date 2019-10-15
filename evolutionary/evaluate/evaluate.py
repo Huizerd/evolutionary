@@ -58,6 +58,9 @@ def evaluate(config, env, h0, individual):
         # TODO: he had 4.0 for not landing, else env.state[1]**2
         objectives["final velocity"] += env.state[1] * env.state[1]
 
+        # Signed divergence should be taken absolute now, since we want to minimize it
+        objectives["signed divergence"] = abs(objectives["signed divergence"])
+
     # Select appropriate objectives
     # List, so order is guaranteed
     assert len(config["evo"]["objectives"]) == 3, "Only 3 objectives are supported"
