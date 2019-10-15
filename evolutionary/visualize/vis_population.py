@@ -3,22 +3,35 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_relevant(population, hof, obj_idx, obj_labels, no_plot=False, last=None):
+def vis_relevant(population, hof, obj_labels, no_plot=False, last=None):
+    # Set indices and limits based on labels
+    assert len(obj_labels) == 3, "Only 3 objectives are supported"
+    obj_limits = []
+    for obj in obj_labels:
+        if obj == "unsigned divergence":
+            obj_limits.append(1000.0)
+        elif obj == "final offset" or obj == "final offset 5m":
+            obj_limits.append(4.0)
+        elif obj == "time to land":
+            obj_limits.append(40.0)
+        elif obj == "final velocity":
+            obj_limits.append(10.0)
+        else:
+            obj_limits.append(np.inf)
+
     # Get relevant fitness values
     fitnesses = np.array(
         [
             ind.fitness.values + (i,)
             for i, ind in enumerate(population)
-            if ind.fitness.values[obj_idx[0][0]] < obj_idx[0][1]
-            and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
+            if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
         ]
     )
     fitnesses_hof = np.array(
         [
             ind.fitness.values + (i,)
             for i, ind in enumerate(hof)
-            if ind.fitness.values[obj_idx[0][0]] < obj_idx[0][1]
-            and ind.fitness.values[obj_idx[1][0]] < obj_idx[1][1]
+            if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
         ]
     )
 
@@ -42,28 +55,24 @@ def vis_relevant(population, hof, obj_idx, obj_labels, no_plot=False, last=None)
 
     # Plot the fitnesses
     if fitnesses.size > 0:
-        ax.scatter(fitnesses[:, obj_idx[0][0]], fitnesses[:, obj_idx[1][0]])
+        ax.scatter(fitnesses[:, 0], fitnesses[:, 2])
     if fitnesses_hof.size > 0:
-        ax.scatter(fitnesses_hof[:, obj_idx[0][0]], fitnesses_hof[:, obj_idx[1][0]])
+        ax.scatter(fitnesses_hof[:, 0], fitnesses_hof[:, 2])
 
     # Annotate
     for i in range(fitnesses.shape[0]):
-        ax.text(
-            fitnesses[i, obj_idx[0][0]],
-            fitnesses[i, obj_idx[1][0]],
-            str(int(fitnesses[i, 3])),
-        )
+        ax.text(fitnesses[i, 0], fitnesses[i, 2], str(int(fitnesses[i, 3])))
     for i in range(fitnesses_hof.shape[0]):
         ax.text(
-            fitnesses_hof[i, obj_idx[0][0]],
-            fitnesses_hof[i, obj_idx[1][0]],
+            fitnesses_hof[i, 0],
+            fitnesses_hof[i, 2],
             str(int(fitnesses_hof[i, 3])),
             va="top",
         )
 
     # Decorate figure
-    ax.set_xlabel(obj_labels[obj_idx[0][0]])
-    ax.set_ylabel(obj_labels[obj_idx[1][0]])
+    ax.set_xlabel(obj_labels[0])
+    ax.set_ylabel(obj_labels[2])
     ax.grid()
 
     # Update/draw figure
@@ -98,6 +107,14 @@ def vis_population(population, hof, obj_labels, no_plot=False, last=None):
     # Annotate only population for now
     for i in range(fitnesses.shape[0]):
         ax.text(fitnesses[i, 0], fitnesses[i, 1], fitnesses[i, 2], str(i))
+    for i in range(fitnesses_hof.shape[0]):
+        ax.text(
+            fitnesses_hof[i, 0],
+            fitnesses_hof[i, 1],
+            fitnesses_hof[i, 2],
+            str(i),
+            va="top",
+        )
 
     # Decorate figure
     ax.set_xlabel(obj_labels[0])

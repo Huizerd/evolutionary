@@ -14,10 +14,8 @@ from deap import base, creator, tools
 
 from evolutionary.network.ann import ANN
 from evolutionary.network.snn import SNN
-from evolutionary.environment.hover_env import QuadHover
-from evolutionary.environment.landing_env import QuadLanding
-from evolutionary.evaluate.eval_hover import eval_hover
-from evolutionary.evaluate.eval_landing import eval_landing
+from evolutionary.environment.environment import QuadEnv
+from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.utils import dask_map
@@ -28,10 +26,6 @@ from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 # Suppress scientific notation
 np.set_printoptions(suppress=True)
-
-# Set up DEAP
-creator.create("Fitness", base.Fitness, weights=(-1.0, -1.0, -1.0))
-creator.create("Individual", list, fitness=creator.Fitness)
 
 
 def main(config, debug=False, no_plot=False):
@@ -45,22 +39,8 @@ def main(config, debug=False, no_plot=False):
     else:
         raise KeyError("Not a valid network key!")
 
-    # Set up scenario
-    if config["scenario"] == "hover":
-        env = QuadHover
-        eval = eval_hover
-        obj_idx = ((1, 100), (2, 5))
-        obj_labels = ("air time", "total divergence", "final height offset")
-    elif config["scenario"] == "landing":
-        env = QuadLanding
-        eval = eval_landing
-        obj_idx = ((0, 40), (2, 10))
-        obj_labels = ("time to land", "final height", "final velocity")
-    else:
-        raise KeyError("Not a valid scenario key!")
-
     # And init environment
-    env = env(
+    env = QuadEnv(
         delay=np.random.randint(*config["env"]["delay"]),
         comp_delay_prob=config["env"]["comp delay prob"],
         noise=np.random.uniform(*config["env"]["noise"]),
@@ -74,7 +54,10 @@ def main(config, debug=False, no_plot=False):
         seed=np.random.randint(config["env"]["seeds"]),
     )
 
-    # Set up remainder of DEAP
+    # Set up DEAP
+    creator.create("Fitness", base.Fitness, weights=config["evo"]["obj weights"])
+    creator.create("Individual", list, fitness=creator.Fitness)
+
     toolbox = base.Toolbox()
     toolbox.register(
         "individual", tools.initRepeat, container=creator.Individual, func=network, n=1
@@ -82,12 +65,14 @@ def main(config, debug=False, no_plot=False):
     toolbox.register(
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
-    toolbox.register("evaluate", partial(eval, config, env, config["env"]["h0"]))
+    toolbox.register("evaluate", partial(evaluate, config, env, config["env"]["h0"]))
     toolbox.register("mate", crossover_none)
     toolbox.register(
         "mutate",
         partial(
-            mutate_call_network, config["genes"], mutation_rate=config["mutation rate"]
+            mutate_call_network,
+            config["evo"]["genes"],
+            mutation_rate=config["evo"]["mutation rate"],
         ),
     )
     toolbox.register("select", tools.selNSGA2)
@@ -106,7 +91,7 @@ def main(config, debug=False, no_plot=False):
     # Initialize population
     # Pareto front: set of individuals that are not strictly dominated
     # (i.e., better scores for all objectives) by others
-    population = toolbox.population(n=config["pop size"])
+    population = toolbox.population(n=config["evo"]["pop size"])
     hof = tools.ParetoFront()  # hall of fame!
 
     # Evaluate population
@@ -131,16 +116,15 @@ def main(config, debug=False, no_plot=False):
 
     if not debug:
         # Plot population fitness and its relevant part
-        last_pop = vis_population(population, hof, obj_labels, no_plot=no_plot)
-        last_rel = vis_relevant(population, hof, obj_idx, obj_labels, no_plot=no_plot)
+        last_pop = vis_population(
+            population, hof, config["evo"]["objectives"], no_plot=no_plot
+        )
+        last_rel = vis_relevant(
+            population, hof, config["evo"]["objectives"], no_plot=no_plot
+        )
 
         # Create folders for parameters
-        for i in range(0, config["gens"], config["log interval"]):
-            os.makedirs(f"{config['log location']}parameters_{i}/")
-        if not os.path.exists(
-            f"{config['log location']}parameters_{config['gens'] - 1}/"
-        ):
-            os.makedirs(f"{config['log location']}parameters_{config['gens'] - 1}/")
+        os.makedirs(f"{config['log location']}parameters_0/")
         os.makedirs(f"{config['log location']}hof/")
 
         # And log the initial performance
@@ -154,7 +138,7 @@ def main(config, debug=False, no_plot=False):
             )
 
     # Begin the evolution!
-    for gen in range(1, config["gens"]):
+    for gen in range(1, config["evo"]["gens"]):
         # Get Pareto front
         # sortNondominated() returns a list of "fronts",
         # of which the first is the actual Pareto front
@@ -203,7 +187,7 @@ def main(config, debug=False, no_plot=False):
 
         # Select the population for the next generation
         # from the last generation and its offspring
-        population = toolbox.select(population + offspring, config["pop size"])
+        population = toolbox.select(population + offspring, config["evo"]["pop size"])
 
         # Log stuff
         record = stats.compile(population)
@@ -217,14 +201,26 @@ def main(config, debug=False, no_plot=False):
         if not debug:
             # Plot population fitness and the relevant part of it
             last_pop = vis_population(
-                population, hof, obj_labels, last=last_pop, no_plot=no_plot
+                population,
+                hof,
+                config["evo"]["objectives"],
+                last=last_pop,
+                no_plot=no_plot,
             )
             last_rel = vis_relevant(
-                population, hof, obj_idx, obj_labels, last=last_rel, no_plot=no_plot
+                population,
+                hof,
+                config["evo"]["objectives"],
+                last=last_rel,
+                no_plot=no_plot,
             )
 
             # Log every so many generations
-            if not gen % config["log interval"] or gen == config["gens"] - 1:
+            if not gen % config["log interval"] or gen == config["evo"]["gens"] - 1:
+                # Create directory
+                if not os.path.exists(f"{config['log location']}parameters_{gen}/"):
+                    os.makedirs(f"{config['log location']}parameters_{gen}/")
+
                 # Save population figure
                 last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
                 if last_rel is not None:

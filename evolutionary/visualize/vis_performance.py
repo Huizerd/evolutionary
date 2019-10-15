@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pysnn.neuron import Input, Neuron
 from pysnn.network import SNNNetwork
 
-from gym_quad.envs import QuadHover as QuadBase
+from evolutionary.environment.environment import QuadEnv
 from evolutionary.network.ann import ANN
 from evolutionary.network.snn import SNN
 
@@ -16,7 +16,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
     # Build environment, test for various starting altitudes
     # Use regular base QuadHover (no need for modified reward here)
     # Use most parameters from config (where a range was given, we take the lower bound)
-    env = QuadBase(
+    env = QuadEnv(
         delay=config["env"]["delay"][0],
         comp_delay_prob=0.0,
         noise=config["env"]["noise"][0],
@@ -94,21 +94,29 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
             obs, _, done, _ = env.step(action)
 
         # Plot
-        plt.plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
-        plt.plot(time_list, np.array(state_list)[:, 0], label="Height")
-        plt.plot(time_list, np.array(state_list)[:, 1], label="Velocity")
-        plt.plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
-        # plt.plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
-        plt.plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-        # plt.plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-        plt.xlabel("Time")
-        plt.title(f"Performance starting from {h} m")
-        if config["scenario"] == "landing":
-            plt.ylim(-5, env.MAX_H + 1)
-        else:
-            plt.ylim(-1, env.MAX_H + 1)
-        plt.legend()
-        plt.grid()
+        fig_p, axs_p = plt.subplots(5, 1, sharex=True, figsize=(10, 10))
+        # Height
+        axs_p[0].plot(time_list, np.array(state_list)[:, 0], label="Height")
+        axs_p[0].set_ylabel("height [m]")
+        # Velocity
+        axs_p[1].plot(time_list, np.array(state_list)[:, 1], label="Velocity")
+        axs_p[1].set_ylabel("velocity [m/s]")
+        # Acceleration/thrust
+        axs_p[2].plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
+        axs_p[2].set_ylabel("acceleration [m/s2]")
+        # Divergence
+        axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
+        axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
+        axs_p[3].set_ylabel("divergence")
+        # Divergence dot
+        axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
+        axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
+        axs_p[4].set_ylabel("divergence dot")
+        axs_p[4].set_xlabel("Time")
+
+        for ax in axs_p:
+            ax.grid()
+            ax.legend()
         plt.tight_layout()
 
         if not debug:
@@ -133,5 +141,5 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
                     f"{config['log location']}neurons+{'_'.join(config['individual id'])}+{int(h)}m.png"
                 )
 
-        if not no_plot:
+        if not debug and not no_plot:
             plt.show()

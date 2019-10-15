@@ -5,94 +5,65 @@ from pysnn.connection import Linear
 from pysnn.neuron import InputTraceLinear, LIFNeuronTraceLinear
 
 
-# TODO: is there even a time dim?
-# TODO: do we ever use larger batch sizes?
-# TODO: we may need longer than time to get a good max if we don't reset in between
-# TODO: trace can of course accumulate over time, so do
-# max_trace = (np.ones(time) * trace_decay ** np.arange(time - 1, -1, -1)).sum() * alpha_t
-
-
 class SNN(SNNNetwork):
     def __init__(self, inputs, hidden, outputs, config):
         super(SNN, self).__init__()
 
         # Get configuration parameters for connections and neurons
+        # Trace parameters for input neurons don't matter, unused anyway
         n_in_dynamics = [
             config["snn"]["dt"],
             config["snn"]["alpha t"][0],
-            config["snn"]["trace decay"][0],
+            config["snn"]["tau t"][0],
         ]
         n_hid_dynamics = [
             config["snn"]["thresh"][0],
             config["snn"]["v rest"][0],
             config["snn"]["alpha v"][0],
-            config["snn"]["alpha t"][1],
+            config["snn"]["alpha t"][0],
             config["snn"]["dt"],
-            config["snn"]["duration refrac"][0],
-            config["snn"]["voltage decay"][0],
-            config["snn"]["trace decay"][1],
+            config["snn"]["refrac"][0],
+            config["snn"]["tau v"][0],
+            config["snn"]["tau t"][0],
         ]
         n_out_dynamics = [
             config["snn"]["thresh"][1],
             config["snn"]["v rest"][1],
             config["snn"]["alpha v"][1],
-            config["snn"]["alpha t"][2],
+            config["snn"]["alpha t"][1],
             config["snn"]["dt"],
-            config["snn"]["duration refrac"][1],
-            config["snn"]["voltage decay"][1],
-            config["snn"]["trace decay"][2],
+            config["snn"]["refrac"][1],
+            config["snn"]["tau v"][1],
+            config["snn"]["tau t"][1],
         ]
-        c_dynamics = [
-            config["snn"]["batch size"],
-            config["snn"]["dt"],
-            config["snn"]["delay"],
-        ]
+        c_dynamics = [1, config["snn"]["dt"], config["snn"]["delay"]]
 
         # Encoding/decoding
-        # TODO: is there another way to do this?
-        self.scale = config["snn"]["scale"]
-        self.div_clamp = (-config["snn"]["scale"], config["snn"]["scale"])
-        self.offset = config["snn"]["offset"]
-        self.max_trace = config["snn"]["max trace"]
-        self.time = config["snn"]["time"]
-        # TODO: make this nicer, nothing from env/G!
+        self.in_scale = config["snn"]["input scale"]
+        self.in_offset = config["snn"]["input offset"]
+        self.out_scale = config["snn"]["output scale"]
         self.output_bounds = [b * 9.81 for b in config["env"]["thrust bounds"]]
-        self.method = config["snn"]["decoding"]
+        self.decoding = config["snn"]["decoding"]
 
         # Neurons
-        self.neuron0 = InputTraceLinear(
-            (config["snn"]["batch size"], 1, inputs), *n_in_dynamics
-        )
-        # self.neuron0 = LIFNeuronTraceLinear(
-        #     (config["snn"]["batch size"], 1, inputs), *n_hid_dynamics
-        # )
-        self.neuron1 = LIFNeuronTraceLinear(
-            (config["snn"]["batch size"], 1, hidden), *n_hid_dynamics
-        )
-        self.neuron2 = LIFNeuronTraceLinear(
-            (config["snn"]["batch size"], 1, outputs), *n_out_dynamics
-        )
+        self.neuron0 = InputTraceLinear((1, 1, inputs), *n_in_dynamics)
+        self.neuron1 = LIFNeuronTraceLinear((1, 1, hidden), *n_hid_dynamics)
+        self.neuron2 = LIFNeuronTraceLinear((1, 1, outputs), *n_out_dynamics)
 
         # Connections
         self.fc1 = Linear(inputs, hidden, *c_dynamics)
         self.fc2 = Linear(hidden, outputs, *c_dynamics)
 
-        # NOTE: usage of decays instead of taus implies linear neurons!
-        assert (
-            "voltage decay" in config["snn"]
-            and isinstance(self.neuron0, InputTraceLinear)
-            # and isinstance(self.neuron0, LIFNeuronTraceLinear)
-            and isinstance(self.neuron1, LIFNeuronTraceLinear)
-            and isinstance(self.neuron2, LIFNeuronTraceLinear)
-        )
-
     def forward(self, x):
         # Input layer: encoding
         x = self._encode(x)
-        spikes, trace = self.neuron0(x)
+        x, trace = self.neuron0(x)  # same x as above (just fed through)
 
         # Hidden layer
-        x, _ = self.fc1(spikes, trace)
+        # So actually, divergence * weight is direct input current to neurons here
+        # So I might as well not change anything about the parameters there!
+        # Connection trace is not used (2nd argument)
+        x, _ = self.fc1(x, trace)
         spikes, trace = self.neuron1(x)
 
         # Output layer
@@ -102,81 +73,27 @@ class SNN(SNNNetwork):
         return self._decode(spikes, trace)
 
     def mutate(self, genes, mutation_rate=1.0):
-        # for gene in genes:
-        #     for child in self.children():
-        #         if hasattr(child, gene):
-        #             if gene == "weight":
-        #                 weight = getattr(child, gene)
-        #                 mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
-        #                 # TODO: does this change connection.weight as well? Destroy its Parameter status?
-        #                 weight = torch.where(torch.rand_like(weight) < mutation_rate, mutation, weight)
-        # for child in self.children():
-        #     if hasattr(child, "voltage_decay"):
-        #         param = getattr(child, "voltage_decay")
-        #         if torch.rand(1).item() < mutation_rate:
-        #             param.uniform_(0.1, 0.9)  # works!
-        #             # param.data = torch.rand_like(param)  # works!
-        #             # param = torch.rand_like(param)  # doesn't work
-        #     if hasattr(child, "trace_decay"):
-        #         param = getattr(child, "trace_decay")
-        #         if torch.rand(1).item() < mutation_rate:
-        #             param.uniform_(0.1, 0.9)  # works!
-        # if hasattr(child, "delay_init"):
-        #     param = getattr(child, "delay_init")
-        #     assert param is not None, "Initial delay should be at least 1!"
-        #     param += torch.randint_like(param, -2, 2) * (torch.rand_like(param) < mutation_rate).float()
-        #     param.clamp_(min=1)
-
-        # Go over all parameters
-        for name, param in self.named_parameters():
-            if "weight" in name and "weight" in genes:
-                # Uniform in range [-w - 0.05, 2w + 0.05]
-                # No idea why this range
-                # TODO: is this a correct/efficient way to replace all data in a tensor?
-                mutation = (3.0 * torch.rand_like(param) - 1.0) * param.abs() + (
-                    2.0 * torch.rand_like(param) - 1.0
-                ) * 0.05
-                # .data is needed here!
-                param.data = torch.where(
-                    torch.rand_like(param) < mutation_rate, mutation, param
-                )
-                # mutation = torch.empty_like(param).uniform_(-1, 1)
-                # param += mutation * (torch.rand_like(param) < mutation_rate).float()
-                # param.clamp_(0, 1)
-            # elif "thresh" in name and "thresh" in genes:
-            #     mutation = torch.empty_like(param).uniform_(-0.1, 0.1)
-            #     param += mutation * (torch.rand_like(param) < mutation_rate).float()
-            #     param.clamp_(min=0)
-            # elif "delay" in name:
-            #     mutation = torch.randint_like(param, -1, 2)
-            #     param += mutation
-            #     param.clamp_(min=0)
-            # elif "thresh" in name and not "center" in name:
-            #     print("Thresholds found")
-            # elif "decay" in name:
-            #     print("Decay found")
+        # Go over all genes that have to be mutated
+        for gene in genes:
+            for child in self.children():
+                if hasattr(child, gene):
+                    if gene == "weight":
+                        weight = getattr(child, gene)
+                        # Uniform in range [-w - 0.05, 2w + 0.05]
+                        mutation = (
+                            3.0 * torch.rand_like(weight) - 1.0
+                        ) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
+                        # .data is needed to access parameter
+                        weight.data = torch.where(
+                            torch.rand_like(weight) < mutation_rate, mutation, weight
+                        )
 
     def _scale_input(self, input):
-        return input / self.scale + self.offset
+        return input / self.in_scale + self.in_offset
 
     def _encode(self, input):
-        # TODO: a fold is missing in Input neuron, so doesn't make sense to pass spikes
-        # TODO: create issue and for now use clamp + offset. Or use clamp anyway?
         # Clamp divergence to bounds to prevent negative firing rate
-        input.clamp_(*self.div_clamp)
-        # spikes = torch.zeros(*input.size(), time, dtype=torch.uint8)
-        # current = input * scale + offset
-        # voltage = torch.zeros(*input.size(), dtype=torch.float)
-        # thresh = torch.ones(*input.size(), dtype=torch.float) * thresh_enc
-        #
-        # for i in range(time):
-        #     voltage += current
-        #     spikes[..., i] = voltage >= thresh
-        #     voltage[spikes[..., i] == 1] = 0.0
-        #     thresh[spikes[..., i] == 1] += thresh_plus
-        #     voltage *= leak
-        #
-        # return spikes
+        input.clamp_(-self.in_scale, self.in_scale)
         return self._scale_input(input)
 
     def _scale_output(self, output):
@@ -189,23 +106,8 @@ class SNN(SNNNetwork):
         # What to use as decoding? Time to first spike, PSP, trace? We have trace anyway
         # Or do multiple options and let evolution decide?
         # Return 1d tensor!
-        if self.method == "ttfs":
-            # TODO: this needs spike trains of time size, do we have those even?
-            # TODO: currently just outputs minimum thrust
-            # For now, this approach assumes two things:
-            # - is computed on CPU (only then will it return the first occurrence)
-            # - time is last dimension
-            ttfs = out_spikes.argmax(-1).view(-1).float() / self.time
-            return self._scale_output(ttfs)
-        elif self.method == "trace":
-            # TODO: is trace in PySNN a scalar value or a tensor of spikes?
-            # TODO: would need max possible trace for some scaling
-            # TODO: do we reset trace between passes? Or not and small sequences?
-            trace = out_trace.view(-1) / self.max_trace
+        if self.decoding == "trace":
+            trace = out_trace.view(-1) / self.out_scale
             return self._scale_output(trace)
-        elif self.method == "psp":
-            # TODO: neuron should be without spiking in this case? And quite some decay
-            # TODO: isn't this practically equivalent to trace approach? Except different constants?
-            raise NotImplementedError("PSP decoding hasn't been implemented yet!")
         else:
             raise KeyError("Not a valid method key!")
