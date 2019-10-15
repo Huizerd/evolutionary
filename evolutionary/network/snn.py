@@ -2,7 +2,7 @@ import torch
 
 from pysnn.network import SNNNetwork
 from pysnn.connection import Linear
-from pysnn.neuron import InputTraceLinear, LIFNeuronTraceLinear
+from pysnn.neuron import Input, LIFNeuron
 
 
 class SNN(SNNNetwork):
@@ -46,9 +46,9 @@ class SNN(SNNNetwork):
         self.decoding = config["snn"]["decoding"]
 
         # Neurons
-        self.neuron0 = InputTraceLinear((1, 1, inputs), *n_in_dynamics)
-        self.neuron1 = LIFNeuronTraceLinear((1, 1, hidden), *n_hid_dynamics)
-        self.neuron2 = LIFNeuronTraceLinear((1, 1, outputs), *n_out_dynamics)
+        self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
+        self.neuron1 = LIFNeuron((1, 1, hidden), *n_hid_dynamics)
+        self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics)
 
         # Connections
         self.fc1 = Linear(inputs, hidden, *c_dynamics)

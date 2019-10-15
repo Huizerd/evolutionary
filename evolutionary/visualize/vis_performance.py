@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pysnn.neuron import Input, Neuron
+from pysnn.neuron import BaseInput, BaseNeuron
 from pysnn.network import SNNNetwork
 
 from evolutionary.environment.environment import QuadEnv
@@ -60,7 +60,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
             [
                 (name, {"trace": [], "volt": [], "spike": [], "thresh": []})
                 for name, child in network.named_children()
-                if isinstance(child, Input) or isinstance(child, Neuron)
+                if isinstance(child, BaseInput) or isinstance(child, BaseNeuron)
             ]
         )
 
