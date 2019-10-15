@@ -7,17 +7,8 @@ def vis_relevant(population, hof, obj_labels, no_plot=False, last=None):
     # Set indices and limits based on labels
     assert len(obj_labels) == 3, "Only 3 objectives are supported"
     obj_limits = []
-    for obj in obj_labels:
-        if obj == "unsigned divergence":
-            obj_limits.append(1000.0)
-        elif obj == "final offset" or obj == "final offset 5m":
-            obj_limits.append(4.0)
-        elif obj == "time to land":
-            obj_limits.append(40.0)
-        elif obj == "final velocity":
-            obj_limits.append(10.0)
-        else:
-            obj_limits.append(np.inf)
+    for _ in obj_labels:
+        obj_limits.append(np.inf)
 
     # Get relevant fitness values
     fitnesses = np.array(

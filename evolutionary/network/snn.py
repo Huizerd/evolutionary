@@ -76,17 +76,48 @@ class SNN(SNNNetwork):
         # Go over all genes that have to be mutated
         for gene in genes:
             for child in self.children():
-                if hasattr(child, gene):
-                    if gene == "weight":
-                        weight = getattr(child, gene)
-                        # Uniform in range [-w - 0.05, 2w + 0.05]
-                        mutation = (
-                            3.0 * torch.rand_like(weight) - 1.0
-                        ) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
-                        # .data is needed to access parameter
-                        weight.data = torch.where(
-                            torch.rand_like(weight) < mutation_rate, mutation, weight
-                        )
+                if (
+                    hasattr(child, gene)
+                    and gene == "weight"
+                    and not genes[-1] == "allow flip"
+                ):
+                    weight = getattr(child, gene)
+                    # Uniform in range [-w - 0.05, 2w + 0.05]
+                    # See explanation in email
+                    # TODO: multiplication by non-absolute weight actually allows change of sign, but does this make sense for SNNs?
+                    mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight.abs() + (
+                        2.0 * torch.rand_like(weight) - 1.0
+                    ) * 0.05
+                    # .data is needed to access parameter
+                    weight.data = torch.where(
+                        torch.rand_like(weight) < mutation_rate, mutation, weight
+                    )
+                elif (
+                    hasattr(child, gene)
+                    and gene == "weight"
+                    and genes[-1] == "allow flip"
+                ):
+                    weight = getattr(child, gene)
+                    # Uniform in range [-w - 0.05, 2w + 0.05]
+                    # See explanation in email
+                    # TODO: multiplication by non-absolute weight actually allows change of sign, but does this make sense for SNNs?
+                    mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight + (
+                        2.0 * torch.rand_like(weight) - 1.0
+                    ) * 0.05
+                    # .data is needed to access parameter
+                    weight.data = torch.where(
+                        torch.rand_like(weight) < mutation_rate, mutation, weight
+                    )
+                elif hasattr(child, gene) and gene in [
+                    "alpha_v",
+                    "alpha_t",
+                    "tau_v",
+                    "tau_t",
+                ]:
+                    alpha = getattr(child, gene)
+                    if torch.rand(1).item() < mutation_rate:
+                        # Same for all neurons in a layer though!
+                        alpha.uniform_(0.0, 1.0)
 
     def _scale_input(self, input):
         return input / self.in_scale + self.in_offset
