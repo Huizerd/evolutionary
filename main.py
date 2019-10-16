@@ -124,9 +124,9 @@ def main(config, debug=False, no_plot=False):
 
     if not debug:
         # Plot population fitness and its relevant part
-        last_pop = vis_population(
-            population, hof, config["evo"]["objectives"], no_plot=no_plot
-        )
+        # last_pop = vis_population(
+        #     population, hof, config["evo"]["objectives"], no_plot=no_plot
+        # )
         last_rel = vis_relevant(
             population, hof, config["evo"]["objectives"], no_plot=no_plot
         )
@@ -136,7 +136,7 @@ def main(config, debug=False, no_plot=False):
         os.makedirs(f"{config['log location']}hof/")
 
         # And log the initial performance
-        last_pop[0].savefig(f"{config['log location']}population_0.png")
+        # last_pop[0].savefig(f"{config['log location']}population_0.png")
         if last_rel is not None:
             last_rel[0].savefig(f"{config['log location']}relevant_0.png")
         for i, ind in enumerate(population):
@@ -209,13 +209,13 @@ def main(config, debug=False, no_plot=False):
 
         if not debug:
             # Plot population fitness and the relevant part of it
-            last_pop = vis_population(
-                population,
-                hof,
-                config["evo"]["objectives"],
-                last=last_pop,
-                no_plot=no_plot,
-            )
+            # last_pop = vis_population(
+            #     population,
+            #     hof,
+            #     config["evo"]["objectives"],
+            #     last=last_pop,
+            #     no_plot=no_plot,
+            # )
             last_rel = vis_relevant(
                 population,
                 hof,
@@ -231,7 +231,7 @@ def main(config, debug=False, no_plot=False):
                     os.makedirs(f"{config['log location']}parameters_{gen}/")
 
                 # Save population figure
-                last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+                # last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
                 if last_rel is not None:
                     last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
