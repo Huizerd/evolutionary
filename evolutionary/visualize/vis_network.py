@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
 
 from evolutionary.network.ann import ANN
@@ -13,7 +12,15 @@ def vis_network(config, parameters, debug=False, no_plot=False):
     if config["network"] == "ANN":
         network = ANN(2, config["hidden size"], 1)
     elif config["network"] == "SNN":
-        network = SNN(2, config["hidden size"], 1, config)
+        if config["double neurons"]:
+            inputs = 4
+        else:
+            inputs = 2
+        if config["double actions"]:
+            outputs = 2
+        else:
+            outputs = 1
+        network = SNN(inputs, config["hidden size"], outputs, config)
     else:
         raise KeyError("Not a valid network key!")
 

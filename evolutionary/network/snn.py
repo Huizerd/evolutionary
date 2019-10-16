@@ -39,9 +39,12 @@ class SNN(SNNNetwork):
         c_dynamics = [1, config["snn"]["dt"], config["snn"]["delay"]]
 
         # Encoding/decoding
+        self.double_neurons = config["double neurons"]
         self.in_scale = config["snn"]["input scale"]
         self.in_offset = config["snn"]["input offset"]
+        self.double_actions = config["double actions"]
         self.out_scale = config["snn"]["output scale"]
+        self.out_offset = config["snn"]["output offset"]
         self.output_bounds = [b * 9.81 for b in config["env"]["thrust bounds"]]
         self.decoding = config["snn"]["decoding"]
 
@@ -80,9 +83,9 @@ class SNN(SNNNetwork):
                     if gene == "weight":
                         weight = getattr(child, gene)
                         # Uniform in range [-w - 0.05, 2w + 0.05]
-                        mutation = (
-                            3.0 * torch.rand_like(weight) - 1.0
-                        ) * weight.abs() + (2.0 * torch.rand_like(weight) - 1.0) * 0.05
+                        mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight + (
+                            2.0 * torch.rand_like(weight) - 1.0
+                        ) * 0.05
                         # .data is needed to access parameter
                         weight.data = torch.where(
                             torch.rand_like(weight) < mutation_rate, mutation, weight
@@ -92,22 +95,39 @@ class SNN(SNNNetwork):
         return input / self.in_scale + self.in_offset
 
     def _encode(self, input):
-        # Clamp divergence to bounds to prevent negative firing rate
-        input.clamp_(-self.in_scale, self.in_scale)
-        return self._scale_input(input)
+        if self.double_neurons:
+            # Repeat to have: (div, divdot, div, divdot)
+            input = input.repeat(2)
+            # Clamp first half to positive, second half to negative
+            input[:2].clamp_(min=0)
+            input[2:].clamp_(max=0)
+            # TODO: but when divergence is now zero, our action will go to zero as well!
+            # TODO: so use offset to guarantee firing?
+            # TODO: or decode action with an offset = thrust for hover?
+            # TODO: or two output neurons as well??
+            # TODO: no need for maximum clamping, because neuron saturation takes care of that right?
+            return input
+        else:
+            # Clamp divergence to bounds to prevent negative firing rate
+            input.clamp_(-self.in_scale, self.in_scale)
+            return self._scale_input(input)
 
     def _scale_output(self, output):
-        return (
-            self.output_bounds[0]
-            + (self.output_bounds[1] - self.output_bounds[0]) * output
-        )
+        return self.output_bounds[0] + (
+            self.output_bounds[1] - self.output_bounds[0]
+        ) * (output / self.out_scale + self.out_offset)
 
     def _decode(self, out_spikes, out_trace):
         # What to use as decoding? Time to first spike, PSP, trace? We have trace anyway
         # Or do multiple options and let evolution decide?
         # Return 1d tensor!
-        if self.decoding == "trace":
-            trace = out_trace.view(-1) / self.out_scale
-            return self._scale_output(trace)
+        if self.double_actions:
+            raise NotImplementedError(
+                "Not sure how to do this yet, since we have to suppress one neuron in some way? Or select only one trace, since we want either pos or negative, not both."
+            )
         else:
-            raise KeyError("Not a valid method key!")
+            if self.decoding == "trace":
+                trace = out_trace.view(-1)
+                return self._scale_output(trace)
+            else:
+                raise KeyError("Not a valid method key!")

@@ -1,12 +1,14 @@
 log location: logs/
 log interval: 5
-network: ANN
+network: SNN
+double neurons: True
+double actions: False
 hidden size: 8
 evo:
   gens: 50
   pop size: 100
   mutation rate: 0.3
-  genes: ["weight", "bias"]
+  genes: ["weight"]
   obj weights: [-1.0, 1.0, -1.0]
   objectives: ["signed divergence", "air time", "final offset"]  # second dim not plotted in relevant (so put least important here)
 env:
@@ -22,3 +24,19 @@ env:
   h0: [2.0, 4.0, 6.0, 8.0]
   dt: 0.02
   seeds: 100
+snn:
+  # Lists allow separate parameters for each spiking layer
+  thresh: [0.8, 0.8]
+  v rest: [0.0, 0.0]
+  alpha v: [0.2, 0.2]
+  alpha t: [0.4, 0.4]
+  tau v: [0.8, 0.8]
+  tau t: [0.8, 0.8]
+  refrac: [0, 0]
+  dt: 1
+  delay: 0
+  input scale: 0.1
+  input offset: 1.0
+  output scale: 1.0  # find proper value for this!
+  output offset: 0.0
+  decoding: trace
