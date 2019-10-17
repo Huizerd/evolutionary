@@ -1,7 +1,6 @@
 from collections import OrderedDict
 
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
 
 from evolutionary.network.ann import ANN
