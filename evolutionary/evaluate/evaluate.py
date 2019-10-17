@@ -20,6 +20,7 @@ def evaluate(config, env, h0, individual):
         "final velocity": 0.0,
         "unsigned divergence": 0.0,
         "signed divergence": 0.0,
+        "dummy": 0.0,
     }
 
     for h in h0:
