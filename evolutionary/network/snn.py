@@ -97,7 +97,7 @@ class SNN(SNNNetwork):
     def _encode(self, input):
         if self.double_neurons:
             # Repeat to have: (div, divdot, div, divdot)
-            input = input.repeat(2)
+            input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
             input[:2].clamp_(min=0)
             input[2:].clamp_(max=0)
