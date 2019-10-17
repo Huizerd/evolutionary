@@ -41,23 +41,24 @@ def evaluate(config, env, h0, individual):
             objectives["signed divergence"] += div
 
         # Increment other scores
-        # Air time and time to land
+        # Air time
         if env.t >= env.MAX_T:
             objectives["air time"] += env.MAX_T
-            objectives["time to land"] += env.MAX_T
         else:
             objectives["air time"] += env.t
+
+        # Time to land and final velocity (following Kirk's conventions)
+        if env.t >= env.MAX_T or env.state[0] >= env.MAX_H:
+            objectives["time to land"] += env.MAX_T
+            objectives["final velocity"] += 4.0
+        else:
             objectives["time to land"] += env.t
+            objectives["final velocity"] += env.state[1] * env.state[1]
 
         # Final height and final offset
         objectives["final height"] += env.state[0]
         objectives["final offset"] += abs(h - env.state[0])
         objectives["final offset 5m"] += abs(5.0 - env.state[0])
-
-        # Final velocity
-        # TODO: check whether this makes much of a difference with Kirk's approach
-        # TODO: he had 4.0 for not landing, else env.state[1]**2
-        objectives["final velocity"] += env.state[1] * env.state[1]
 
         # Signed divergence should be taken absolute now, since we want to minimize it
         objectives["signed divergence"] = abs(objectives["signed divergence"])

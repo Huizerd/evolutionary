@@ -29,7 +29,7 @@ snn:
   thresh: [0.8, 0.8]
   v rest: [0.0, 0.0]
   alpha v: [0.2, 0.2]
-  alpha t: [0.4, 0.4]
+  alpha t: [1.0, 1.0]
   tau v: [0.8, 0.8]
   tau t: [0.8, 0.8]
   refrac: [0, 0]
