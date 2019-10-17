@@ -8,7 +8,7 @@ evo:
   mutation rate: 0.3
   genes: ["weight"]
   obj weights: [-1.0, 1.0, -1.0]
-  objectives: ["unsigned divergence", "air time", "final offset"]  # second dim not plotted in relevant (so put least important here)
+  objectives: ["unsigned divergence", "air time", "signed divergence"]  # second dim not plotted in relevant (so put least important here)
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [0, 1]

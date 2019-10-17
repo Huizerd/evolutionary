@@ -22,55 +22,63 @@ def vis_network(config, parameters, debug=False, no_plot=False):
     # Go over all genes and create separate figures
     # Note that weights/delays belong to connections/layers, while others belong to neurons
     for gene in config["evo"]["genes"]:
-        params = OrderedDict(
-            [
-                (name, getattr(child, gene).detach().clone())
-                for name, child in network.named_children()
-                if hasattr(child, gene)
-            ]
-        )
-        param_min = min([p.min().item() for p in params.values()])
-        param_max = max([p.max().item() for p in params.values()])
-
-        # Build figure
-        fig, axs = plt.subplots(2, len(params))
-        for i, (name, param) in zip(range(axs.shape[1]), params.items()):
-            # Colored value plots
-            if gene == "weight":
-                im = axs[0, i].imshow(
-                    param.T.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
-                )
-                axs[0, i].set_xlabel("post neuron id")
-                axs[0, i].set_ylabel("pre neuron id")
-            else:
-                im = axs[0, i].imshow(
-                    param.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
-                )
-            axs[0, i].set_title(f"{gene}: {name}")
-            fig.colorbar(im, ax=axs[0, i], orientation="vertical", fraction=0.1)
-            axs[0, i].tick_params(
-                axis="both",
-                which="both",
-                bottom=False,
-                top=False,
-                left=False,
-                right=False,
-                labelleft=False,
-                labelbottom=False,
+        if gene != "allow flip":
+            params = OrderedDict(
+                [
+                    (name, getattr(child, gene).detach().clone())
+                    for name, child in network.named_children()
+                    if hasattr(child, gene)
+                ]
             )
+            param_min = min([p.min().item() for p in params.values()])
+            param_max = max([p.max().item() for p in params.values()])
 
-            # Histograms
-            axs[1, i].hist(param.view(-1).numpy(), range=(param_min, param_max))
-            axs[1, i].set_xlabel(f"{gene} value")
-            axs[1, i].set_ylabel("count")
-            axs[1, i].grid()
+            # Build figure
+            fig, axs = plt.subplots(2, len(params))
+            for i, (name, param) in zip(range(axs.shape[1]), params.items()):
+                # Colored value plots
+                if gene == "weight":
+                    im = axs[0, i].imshow(
+                        param.T.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
+                    )
+                    axs[0, i].set_xlabel("post neuron id")
+                    axs[0, i].set_ylabel("pre neuron id")
+                elif "alpha" in gene or "tau" in gene:
+                    im = axs[0, i].imshow(
+                        param.view(1, 1).numpy(),
+                        cmap="plasma",
+                        vmin=param_min,
+                        vmax=param_max,
+                    )
+                else:
+                    im = axs[0, i].imshow(
+                        param.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
+                    )
+                axs[0, i].set_title(f"{gene}: {name}")
+                fig.colorbar(im, ax=axs[0, i], orientation="vertical", fraction=0.1)
+                axs[0, i].tick_params(
+                    axis="both",
+                    which="both",
+                    bottom=False,
+                    top=False,
+                    left=False,
+                    right=False,
+                    labelleft=False,
+                    labelbottom=False,
+                )
 
-        fig.tight_layout()
+                # Histograms
+                axs[1, i].hist(param.view(-1).numpy(), range=(param_min, param_max))
+                axs[1, i].set_xlabel(f"{gene} value")
+                axs[1, i].set_ylabel("count")
+                axs[1, i].grid()
 
-        if not debug:
-            fig.savefig(
-                f"{config['log location']}{gene}+{'_'.join(config['individual id'])}.png"
-            )
+            fig.tight_layout()
 
-    if not no_plot:
+            if not debug:
+                fig.savefig(
+                    f"{config['log location']}{gene}+{'_'.join(config['individual id'])}.png"
+                )
+
+    if not debug and not no_plot:
         plt.show()
