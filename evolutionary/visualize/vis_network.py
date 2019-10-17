@@ -49,6 +49,14 @@ def vis_network(config, parameters, debug=False, no_plot=False):
                 )
                 axs[0, i].set_xlabel("post neuron id")
                 axs[0, i].set_ylabel("pre neuron id")
+            elif gene == "bias":
+                im = axs[0, i].imshow(
+                    param.view(1, -1).numpy(),
+                    cmap="plasma",
+                    vmin=param_min,
+                    vmax=param_max,
+                )
+                axs[0, i].set_xlabel("post neuron id")
             else:
                 im = axs[0, i].imshow(
                     param.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
@@ -79,5 +87,5 @@ def vis_network(config, parameters, debug=False, no_plot=False):
                 f"{config['log location']}{gene}+{'_'.join(config['individual id'])}.png"
             )
 
-    if not no_plot:
+    if not debug and not no_plot:
         plt.show()
