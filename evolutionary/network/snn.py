@@ -99,14 +99,14 @@ class SNN(SNNNetwork):
             # Repeat to have: (div, divdot, div, divdot)
             input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
-            input[:2].clamp_(min=0)
-            input[2:].clamp_(max=0)
+            input[..., :2].clamp_(min=0)
+            input[..., 2:].clamp_(max=0)
             # TODO: but when divergence is now zero, our action will go to zero as well!
             # TODO: so use offset to guarantee firing?
             # TODO: or decode action with an offset = thrust for hover?
             # TODO: or two output neurons as well??
             # TODO: no need for maximum clamping, because neuron saturation takes care of that right?
-            return input
+            return input.abs()
         else:
             # Clamp divergence to bounds to prevent negative firing rate
             input.clamp_(-self.in_scale, self.in_scale)
@@ -122,9 +122,12 @@ class SNN(SNNNetwork):
         # Or do multiple options and let evolution decide?
         # Return 1d tensor!
         if self.double_actions:
-            raise NotImplementedError(
-                "Not sure how to do this yet, since we have to suppress one neuron in some way? Or select only one trace, since we want either pos or negative, not both."
-            )
+            if self.decoding == "trace":
+                trace = out_trace.view(-1)
+                output = trace * torch.tensor(self.output_bounds)
+                return output[trace.argmax()].view(-1)
+            else:
+                raise KeyError("Not a valid method key!")
         else:
             if self.decoding == "trace":
                 trace = out_trace.view(-1)
