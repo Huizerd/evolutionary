@@ -8,7 +8,7 @@ def vis_relevant(population, hof, obj_labels, no_plot=False, last=None):
     assert len(obj_labels) == 3, "Only 3 objectives are supported"
     obj_limits = []
     for obj in obj_labels:
-        if obj == "unsigned divergence":
+        if obj == "unsigned divergence" or obj == "signed divergence":
             obj_limits.append(1000.0)
         elif obj == "final offset" or obj == "final offset 5m":
             obj_limits.append(4.0)

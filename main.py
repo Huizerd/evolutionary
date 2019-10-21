@@ -1,5 +1,6 @@
 import argparse
 import datetime, time
+import multiprocessing
 import os
 import random
 from functools import partial
@@ -12,14 +13,12 @@ import numpy as np
 import pandas as pd
 from deap import base, creator, tools
 
-from evolutionary.network.ann import ANN
-from evolutionary.network.snn import SNN
 from evolutionary.environment.environment import QuadEnv
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.utils.utils import dask_map
-from evolutionary.visualize.vis_network import vis_network
+from evolutionary.utils.constructors import build_network_partial
+from evolutionary.visualize.vis_network import vis_network, vis_distributions
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
@@ -31,18 +30,15 @@ np.set_printoptions(suppress=True)
 def main(config, debug=False, no_plot=False):
     # Don't bother with determinism since tournament is stochastic!
 
+    # MP
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4)
+
     # Build network
-    if config["network"] == "ANN":
-        network = partial(ANN, 2, config["hidden size"], 1)
-    elif config["network"] == "SNN":
-        network = partial(SNN, 2, config["hidden size"], 1, config)
-    else:
-        raise KeyError("Not a valid network key!")
+    network = build_network_partial(config)
 
     # And init environment
     env = QuadEnv(
         delay=np.random.randint(*config["env"]["delay"]),
-        comp_delay_prob=config["env"]["comp delay prob"],
         noise=np.random.uniform(*config["env"]["noise"]),
         noise_p=np.random.uniform(*config["env"]["noise p"]),
         thrust_bounds=config["env"]["thrust bounds"],
@@ -51,8 +47,28 @@ def main(config, debug=False, no_plot=False):
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
         dt=config["env"]["dt"],
+        max_t=config["env"]["max time"],
         seed=np.random.randint(config["env"]["seeds"]),
     )
+
+    # Objectives
+    # All possible objectives: air time, time to land, final height, final offset,
+    # final offset from 5 m, final velocity, unsigned divergence, signed divergence
+    valid_objectives = [
+        "air time",
+        "time to land",
+        "final height",
+        "final offset",
+        "final offset 5m",
+        "final velocity",
+        "unsigned divergence",
+        "signed divergence",
+        "dummy",
+    ]
+    assert len(config["evo"]["objectives"]) == 3, "Only 3 objectives are supported"
+    assert all(
+        [obj in valid_objectives for obj in config["evo"]["objectives"]]
+    ), "Invalid objective"
 
     # Set up DEAP
     creator.create("Fitness", base.Fitness, weights=config["evo"]["obj weights"])
@@ -65,7 +81,10 @@ def main(config, debug=False, no_plot=False):
     toolbox.register(
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
-    toolbox.register("evaluate", partial(evaluate, config, env, config["env"]["h0"]))
+    toolbox.register(
+        "evaluate",
+        partial(evaluate, valid_objectives, config, env, config["env"]["h0"]),
+    )
     toolbox.register("mate", crossover_none)
     toolbox.register(
         "mutate",
@@ -76,7 +95,7 @@ def main(config, debug=False, no_plot=False):
         ),
     )
     toolbox.register("select", tools.selNSGA2)
-    toolbox.register("map", dask_map)  # for Dask
+    toolbox.register("map", pool.map)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
@@ -243,18 +262,26 @@ def main(config, debug=False, no_plot=False):
                     f"{config['log location']}logbook.txt", sep="\t", index=False
                 )
 
+    pool.close()
+
 
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
+    parser.add_argument(
+        "--mode", choices=["evolve", "test", "distribute"], default="evolve"
+    )
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--noplot", action="store_true")
     parser.add_argument("--config", type=str, required=True, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
-    parser.add_argument("--parameters", type=str, default=None)
+    parser.add_argument("--parameters", nargs="+", default=None)
     args = vars(parser.parse_args())
 
+    print(args["parameters"], type(args["parameters"]))
+    import pdb
+
+    pdb.set_trace()
     # Read config file
     with open(args["config"], "r") as cf:
         config = yaml.full_load(cf)
@@ -286,9 +313,14 @@ if __name__ == "__main__":
         assert args["parameters"] is not None, "Provide network parameters for testing!"
         config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
         config["individual id"] = [
-            s.replace(".net", "") for s in args["parameters"].split("/")[-2:]
+            s.replace(".net", "") for s in args["parameters"][0].split("/")[-2:]
         ]
-        vis_network(config, args["parameters"], args["debug"], args["noplot"])
-        vis_performance(config, args["parameters"], args["debug"], args["noplot"])
+        vis_network(config, args["parameters"][0], args["debug"], args["noplot"])
+        vis_performance(config, args["parameters"][0], args["debug"], args["noplot"])
+    elif args["mode"] == "distribute":
+        assert args["parameters"] is not None, "Provide network parameters for testing!"
+        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
+        config["individual id"] = [s for s in args["parameters"][0].split("/")[-2:-1]]
+        vis_distributions(config, args["parameters"], args["debug"], args["noplot"])
 
     print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
