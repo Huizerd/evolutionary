@@ -120,6 +120,16 @@ class SNN(SNNNetwork):
                         # Same for all neurons in layer!
                         # Works because the sensible range for all of these parameters is [0, 1]
                         param.uniform_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene == "thresh"
+                    and isinstance(child, LIFNeuron)
+                ):
+                    # Only mutate threshold for non-adaptive neuron
+                    param = getattr(child, gene)
+                    param += (torch.empty_like(param).uniform_(-0.4, 0.4)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
 
     def _scale_input(self, input):
         return input / self.in_scale + self.in_offset
