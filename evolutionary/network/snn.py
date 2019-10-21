@@ -2,7 +2,7 @@ import torch
 
 from pysnn.network import SNNNetwork
 from pysnn.connection import Linear
-from pysnn.neuron import Input, LIFNeuron
+from pysnn.neuron import Input, AdaptiveLIFNeuron, LIFNeuron
 
 
 class SNN(SNNNetwork):
@@ -25,6 +25,8 @@ class SNN(SNNNetwork):
             config["snn"]["refrac"][0],
             config["snn"]["tau v"][0],
             config["snn"]["tau t"][0],
+            config["snn"]["alpha thresh"][0],
+            config["snn"]["tau thresh"][0],
         ]
         n_out_dynamics = [
             config["snn"]["thresh"][1],
@@ -50,7 +52,7 @@ class SNN(SNNNetwork):
 
         # Neurons
         self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
-        self.neuron1 = LIFNeuron((1, 1, hidden), *n_hid_dynamics)
+        self.neuron1 = AdaptiveLIFNeuron((1, 1, hidden), *n_hid_dynamics)
         self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics)
 
         # Connections
@@ -97,16 +99,16 @@ class SNN(SNNNetwork):
     def _encode(self, input):
         if self.double_neurons:
             # Repeat to have: (div, divdot, div, divdot)
-            input = input.repeat(1, 1, 2)
+            self.input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
-            input[..., :2].clamp_(min=0)
-            input[..., 2:].clamp_(max=0)
+            self.input[..., :2].clamp_(min=0)
+            self.input[..., 2:].clamp_(max=0)
             # TODO: but when divergence is now zero, our action will go to zero as well!
             # TODO: so use offset to guarantee firing?
             # TODO: or decode action with an offset = thrust for hover?
             # TODO: or two output neurons as well??
             # TODO: no need for maximum clamping, because neuron saturation takes care of that right?
-            return input.abs()
+            return self.input.abs()
         else:
             # Clamp divergence to bounds to prevent negative firing rate
             input.clamp_(-self.in_scale, self.in_scale)
@@ -122,9 +124,15 @@ class SNN(SNNNetwork):
         # Or do multiple options and let evolution decide?
         # Return 1d tensor!
         if self.double_actions:
-            if self.decoding == "trace":
+            if self.decoding == "max trace":
                 trace = out_trace.view(-1)
                 output = trace * torch.tensor(self.output_bounds)
+                return output[trace.argmax()].view(-1)
+            elif self.decoding == "sum trace":
+                trace = out_trace.view(-1)
+                output = (trace - trace.flip(0)).abs() * torch.tensor(
+                    self.output_bounds
+                )
                 return output[trace.argmax()].view(-1)
             else:
                 raise KeyError("Not a valid method key!")

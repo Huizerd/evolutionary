@@ -1,10 +1,4 @@
-import dask.bag as db
 import numpy as np
-
-
-def dask_map(func, iterable):
-    bag = db.from_sequence(iterable).map(func)
-    return bag.compute()
 
 
 def randomize_env(env, config):

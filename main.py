@@ -1,5 +1,6 @@
 import argparse
 import datetime, time
+import multiprocessing
 import os
 import random
 from functools import partial
@@ -18,7 +19,6 @@ from evolutionary.environment.environment import QuadEnv
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.utils.utils import dask_map
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
@@ -30,6 +30,9 @@ np.set_printoptions(suppress=True)
 
 def main(config, debug=False, no_plot=False):
     # Don't bother with determinism since tournament is stochastic!
+
+    # MP
+    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4)
 
     # Build network
     if config["network"] == "ANN":
@@ -50,7 +53,6 @@ def main(config, debug=False, no_plot=False):
     # And init environment
     env = QuadEnv(
         delay=np.random.randint(*config["env"]["delay"]),
-        comp_delay_prob=config["env"]["comp delay prob"],
         noise=np.random.uniform(*config["env"]["noise"]),
         noise_p=np.random.uniform(*config["env"]["noise p"]),
         thrust_bounds=config["env"]["thrust bounds"],
@@ -59,8 +61,28 @@ def main(config, debug=False, no_plot=False):
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
         dt=config["env"]["dt"],
+        max_t=config["env"]["max time"],
         seed=np.random.randint(config["env"]["seeds"]),
     )
+
+    # Objectives
+    # All possible objectives: air time, time to land, final height, final offset,
+    # final offset from 5 m, final velocity, unsigned divergence, signed divergence
+    valid_objectives = [
+        "air time",
+        "time to land",
+        "final height",
+        "final offset",
+        "final offset 5m",
+        "final velocity",
+        "unsigned divergence",
+        "signed divergence",
+        "dummy",
+    ]
+    assert len(config["evo"]["objectives"]) == 3, "Only 3 objectives are supported"
+    assert all(
+        [obj in valid_objectives for obj in config["evo"]["objectives"]]
+    ), "Invalid objective"
 
     # Set up DEAP
     creator.create("Fitness", base.Fitness, weights=config["evo"]["obj weights"])
@@ -73,7 +95,10 @@ def main(config, debug=False, no_plot=False):
     toolbox.register(
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
-    toolbox.register("evaluate", partial(evaluate, config, env, config["env"]["h0"]))
+    toolbox.register(
+        "evaluate",
+        partial(evaluate, valid_objectives, config, env, config["env"]["h0"]),
+    )
     toolbox.register("mate", crossover_none)
     toolbox.register(
         "mutate",
@@ -84,7 +109,7 @@ def main(config, debug=False, no_plot=False):
         ),
     )
     toolbox.register("select", tools.selNSGA2)
-    toolbox.register("map", dask_map)  # for Dask
+    toolbox.register("map", pool.map)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
@@ -250,6 +275,8 @@ def main(config, debug=False, no_plot=False):
                 pd.DataFrame(logbook).to_csv(
                     f"{config['log location']}logbook.txt", sep="\t", index=False
                 )
+
+    pool.close()
 
 
 if __name__ == "__main__":

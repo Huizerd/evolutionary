@@ -5,23 +5,12 @@ from pysnn.network import SNNNetwork
 from evolutionary.utils.utils import randomize_env
 
 
-def evaluate(config, env, h0, individual):
+def evaluate(valid_objectives, config, env, h0, individual):
     # Randomize environment
     env = randomize_env(env, config)
 
-    # All possible objectives: air time, time to land, final height, final offset,
-    # final offset from 5 m, final velocity, unsigned divergence, signed divergence
-    objectives = {
-        "air time": 0.0,
-        "time to land": 0.0,
-        "final height": 0.0,
-        "final offset": 0.0,
-        "final offset 5m": 0.0,
-        "final velocity": 0.0,
-        "unsigned divergence": 0.0,
-        "signed divergence": 0.0,
-        "dummy": 0.0,
-    }
+    # Keep track of all possible objectives
+    objectives = {obj: 0.0 for obj in valid_objectives}
 
     for h in h0:
         # Reset network and env
@@ -42,14 +31,14 @@ def evaluate(config, env, h0, individual):
 
         # Increment other scores
         # Air time
-        if env.t >= env.MAX_T:
-            objectives["air time"] += env.MAX_T
+        if env.t >= env.max_t:
+            objectives["air time"] += env.max_t
         else:
             objectives["air time"] += env.t
 
         # Time to land and final velocity (following Kirk's conventions)
-        if env.t >= env.MAX_T or env.state[0] >= env.MAX_H:
-            objectives["time to land"] += env.MAX_T
+        if env.t >= env.max_t or env.state[0] >= env.MAX_H:
+            objectives["time to land"] += env.max_t
             objectives["final velocity"] += 4.0
         else:
             objectives["time to land"] += env.t
@@ -65,8 +54,4 @@ def evaluate(config, env, h0, individual):
 
     # Select appropriate objectives
     # List, so order is guaranteed
-    assert len(config["evo"]["objectives"]) == 3, "Only 3 objectives are supported"
-    assert all(
-        [obj in objectives for obj in config["evo"]["objectives"]]
-    ), "Invalid objective"
     return [objectives[obj] for obj in config["evo"]["objectives"]]

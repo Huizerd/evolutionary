@@ -18,7 +18,6 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
     # Use most parameters from config (where a range was given, we take the lower bound)
     env = QuadEnv(
         delay=config["env"]["delay"][0],
-        comp_delay_prob=0.0,
         noise=config["env"]["noise"][0],
         noise_p=config["env"]["noise p"][0],
         thrust_bounds=config["env"]["thrust bounds"],
@@ -27,6 +26,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
         dt=config["env"]["dt"],
+        max_t=config["env"]["max time"],
         seed=None,
     )
     h0 = config["env"]["h0"]
@@ -62,6 +62,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
         obs_gt_list = []
         obs_list = []
         time_list = []
+        encoding_list = []
 
         # For neuron visualization
         neuron_dict = OrderedDict(
@@ -101,6 +102,9 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
             action = action.numpy()
             obs, _, done, _ = env.step(action)
 
+            # Log encoding as well
+            encoding_list.append(network.input.view(-1).numpy())
+
         # Plot
         fig_p, axs_p = plt.subplots(5, 1, sharex=True, figsize=(10, 10))
         # Height
@@ -115,10 +119,14 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
         axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
+        axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
+        axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
         axs_p[3].set_ylabel("divergence")
         # Divergence dot
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
+        axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot")
+        axs_p[4].plot(time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot")
         axs_p[4].set_ylabel("divergence dot")
         axs_p[4].set_xlabel("Time")
 
