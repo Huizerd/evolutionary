@@ -37,6 +37,8 @@ class SNN(SNNNetwork):
             config["snn"]["refrac"][1],
             config["snn"]["tau v"][1],
             config["snn"]["tau t"][1],
+            config["snn"]["alpha thresh"][0],
+            config["snn"]["tau thresh"][0],
         ]
         c_dynamics = [1, config["snn"]["dt"], config["snn"]["delay"]]
 
@@ -49,11 +51,13 @@ class SNN(SNNNetwork):
         self.out_offset = config["snn"]["output offset"]
         self.output_bounds = [b * 9.81 for b in config["env"]["thrust bounds"]]
         self.decoding = config["snn"]["decoding"]
+        if self.decoding == "potential":
+            n_out_dynamics[0] = float("inf")
 
         # Neurons
         self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
         self.neuron1 = AdaptiveLIFNeuron((1, 1, hidden), *n_hid_dynamics)
-        self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics)
+        self.neuron2 = AdaptiveLIFNeuron((1, 1, outputs), *n_out_dynamics)
 
         # Connections
         self.fc1 = Linear(inputs, hidden, *c_dynamics)
@@ -75,7 +79,7 @@ class SNN(SNNNetwork):
         x, _ = self.fc2(spikes, trace)
         spikes, trace = self.neuron2(x)
 
-        return self._decode(spikes, trace)
+        return self._decode(spikes, trace, self.neuron2.v_cell)
 
     def mutate(self, genes, mutation_rate=1.0):
         # Go over all genes that have to be mutated
@@ -119,7 +123,7 @@ class SNN(SNNNetwork):
             self.output_bounds[1] - self.output_bounds[0]
         ) * (output / self.out_scale + self.out_offset)
 
-    def _decode(self, out_spikes, out_trace):
+    def _decode(self, out_spikes, out_trace, out_volt):
         # What to use as decoding? Time to first spike, PSP, trace? We have trace anyway
         # Or do multiple options and let evolution decide?
         # Return 1d tensor!
@@ -134,11 +138,22 @@ class SNN(SNNNetwork):
                     self.output_bounds
                 )
                 return output[trace.argmax()].view(-1)
+            elif self.decoding == "potential":
+                volt = out_volt.view(-1)
+                output = (volt - volt.flip(0)).abs() * torch.tensor(self.output_bounds)
+                return output[volt.argmax()].view(-1)
             else:
                 raise KeyError("Not a valid method key!")
         else:
             if self.decoding == "trace":
                 trace = out_trace.view(-1)
                 return self._scale_output(trace)
+            elif self.decoding == "potential":
+                volt = out_volt.view(-1)
+                output = volt.abs() * torch.tensor(self.output_bounds)
+                if volt > 0:
+                    return output[1].view(-1)
+                else:
+                    return output[0].view(-1)
             else:
                 raise KeyError("Not a valid method key!")

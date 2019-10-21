@@ -4,12 +4,11 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pysnn.neuron import BaseInput, BaseNeuron
+from pysnn.neuron import BaseNeuron
 from pysnn.network import SNNNetwork
 
 from evolutionary.environment.environment import QuadEnv
-from evolutionary.network.ann import ANN
-from evolutionary.network.snn import SNN
+from evolutionary.utils.constructors import build_network
 
 
 def vis_performance(config, parameters, debug=False, no_plot=False):
@@ -32,21 +31,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
     h0 = config["env"]["h0"]
 
     # Load network
-    if config["network"] == "ANN":
-        network = ANN(2, config["hidden size"], 1)
-    elif config["network"] == "SNN":
-        if config["double neurons"]:
-            inputs = 4
-        else:
-            inputs = 2
-        if config["double actions"]:
-            outputs = 2
-        else:
-            outputs = 1
-        network = SNN(inputs, config["hidden size"], outputs, config)
-    else:
-        raise KeyError("Not a valid network key!")
-
+    network = build_network(config)
     network.load_state_dict(torch.load(parameters))
 
     # Go over all heights we trained for
@@ -69,7 +54,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
             [
                 (name, {"trace": [], "volt": [], "spike": [], "thresh": []})
                 for name, child in network.named_children()
-                if isinstance(child, BaseInput) or isinstance(child, BaseNeuron)
+                if isinstance(child, BaseNeuron)
             ]
         )
 
@@ -103,7 +88,8 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
             obs, _, done, _ = env.step(action)
 
             # Log encoding as well
-            encoding_list.append(network.input.view(-1).numpy())
+            if isinstance(network, SNNNetwork):
+                encoding_list.append(network.input.view(-1).numpy())
 
         # Plot
         fig_p, axs_p = plt.subplots(5, 1, sharex=True, figsize=(10, 10))
@@ -119,14 +105,20 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
         axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-        axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
-        axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
+        if encoding_list:
+            axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
+            axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
         axs_p[3].set_ylabel("divergence")
         # Divergence dot
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-        axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot")
-        axs_p[4].plot(time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot")
+        if encoding_list:
+            axs_p[4].plot(
+                time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot"
+            )
+            axs_p[4].plot(
+                time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot"
+            )
         axs_p[4].set_ylabel("divergence dot")
         axs_p[4].set_xlabel("Time")
 
@@ -142,7 +134,7 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
 
         # Plot neurons
         if isinstance(network, SNNNetwork):
-            fig, ax = plt.subplots(config["hidden size"], 3, figsize=(10, 10))
+            fig, ax = plt.subplots(config["hidden size"], 2, figsize=(10, 10))
             for i, (name, recordings) in enumerate(neuron_dict.items()):
                 for var, vals in recordings.items():
                     if len(vals):

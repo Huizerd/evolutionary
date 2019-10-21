@@ -13,13 +13,12 @@ import numpy as np
 import pandas as pd
 from deap import base, creator, tools
 
-from evolutionary.network.ann import ANN
-from evolutionary.network.snn import SNN
 from evolutionary.environment.environment import QuadEnv
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.visualize.vis_network import vis_network
+from evolutionary.utils.constructors import build_network_partial
+from evolutionary.visualize.vis_network import vis_network, vis_distributions
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
@@ -35,20 +34,7 @@ def main(config, debug=False, no_plot=False):
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4)
 
     # Build network
-    if config["network"] == "ANN":
-        network = partial(ANN, 2, config["hidden size"], 1)
-    elif config["network"] == "SNN":
-        if config["double neurons"]:
-            inputs = 4
-        else:
-            inputs = 2
-        if config["double actions"]:
-            outputs = 2
-        else:
-            outputs = 1
-        network = partial(SNN, inputs, config["hidden size"], outputs, config)
-    else:
-        raise KeyError("Not a valid network key!")
+    network = build_network_partial(config)
 
     # And init environment
     env = QuadEnv(
@@ -149,9 +135,9 @@ def main(config, debug=False, no_plot=False):
 
     if not debug:
         # Plot population fitness and its relevant part
-        # last_pop = vis_population(
-        #     population, hof, config["evo"]["objectives"], no_plot=no_plot
-        # )
+        last_pop = vis_population(
+            population, hof, config["evo"]["objectives"], no_plot=no_plot
+        )
         last_rel = vis_relevant(
             population, hof, config["evo"]["objectives"], no_plot=no_plot
         )
@@ -161,7 +147,7 @@ def main(config, debug=False, no_plot=False):
         os.makedirs(f"{config['log location']}hof/")
 
         # And log the initial performance
-        # last_pop[0].savefig(f"{config['log location']}population_0.png")
+        last_pop[0].savefig(f"{config['log location']}population_0.png")
         if last_rel is not None:
             last_rel[0].savefig(f"{config['log location']}relevant_0.png")
         for i, ind in enumerate(population):
@@ -234,13 +220,13 @@ def main(config, debug=False, no_plot=False):
 
         if not debug:
             # Plot population fitness and the relevant part of it
-            # last_pop = vis_population(
-            #     population,
-            #     hof,
-            #     config["evo"]["objectives"],
-            #     last=last_pop,
-            #     no_plot=no_plot,
-            # )
+            last_pop = vis_population(
+                population,
+                hof,
+                config["evo"]["objectives"],
+                last=last_pop,
+                no_plot=no_plot,
+            )
             last_rel = vis_relevant(
                 population,
                 hof,
@@ -256,7 +242,7 @@ def main(config, debug=False, no_plot=False):
                     os.makedirs(f"{config['log location']}parameters_{gen}/")
 
                 # Save population figure
-                # last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+                last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
                 if last_rel is not None:
                     last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
@@ -282,7 +268,9 @@ def main(config, debug=False, no_plot=False):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["evolve", "test"], default="evolve")
+    parser.add_argument(
+        "--mode", choices=["evolve", "test", "distribute"], default="evolve"
+    )
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--noplot", action="store_true")
     parser.add_argument("--config", type=str, required=True, default=None)
@@ -325,5 +313,12 @@ if __name__ == "__main__":
         ]
         vis_network(config, args["parameters"], args["debug"], args["noplot"])
         vis_performance(config, args["parameters"], args["debug"], args["noplot"])
+    elif args["mode"] == "distribute":
+        assert args["parameters"] is not None, "Provide network parameters for testing!"
+        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
+        config["individual id"] = [
+            s.replace(".net", "") for s in args["parameters"].split("/")[-2:]
+        ]
+        vis_distributions(config, args["parameters"], args["debug"], args["noplot"])
 
     print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

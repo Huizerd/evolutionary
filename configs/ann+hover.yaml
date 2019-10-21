@@ -8,17 +8,17 @@ evo:
   mutation rate: 0.3
   genes: ["weight", "bias"]
   obj weights: [-1.0, 1.0, -1.0]
-  objectives: ["signed divergence", "air time", "final offset"]  # second dim not plotted in relevant (so put least important here)
+  objectives: ["final offset", "air time", "unsigned divergence"]  # second dim not plotted in relevant (so put least important here)
 env:
   # Lists (except thrust bounds) indicate randomization bounds
-  delay: [0, 1]
-  comp delay prob: 0.0
-  noise: [0.0, 0.0]
-  noise p: [0.0, 0.0]
+  delay: [3, 6]
+  noise: [0.1, 0.15]
+  noise p: [0.1, 0.25]
   thrust bounds: [-0.8, 0.5]  # in G's
-  thrust tc: [0.02, 0.02]
+  thrust tc: [0.02, 0.1]
   settle: 1.0
-  wind: 0.0
-  h0: [2.0, 4.0, 6.0, 8.0]
+  wind: 0.1
+  h0: [2.0, 6.0]
   dt: 0.02
+  max time: 5.0
   seeds: 100

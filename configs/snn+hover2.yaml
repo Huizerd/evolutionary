@@ -10,7 +10,7 @@ evo:
   mutation rate: 0.3
   genes: ["weight"]
   obj weights: [-1.0, 1.0, -1.0]
-  objectives: ["signed divergence", "air time", "unsigned divergence"]  # second dim not plotted in relevant (so put least important here)
+  objectives: ["final offset", "air time", "unsigned divergence"]  # second dim not plotted in relevant (so put least important here)
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [3, 6]
@@ -19,21 +19,21 @@ env:
   thrust bounds: [-0.8, 0.5]  # in G's
   thrust tc: [0.02, 0.1]
   settle: 1.0
-  wind: 0.5
-  h0: [2.0, 4.0, 6.0, 8.0]
+  wind: 0.1
+  h0: [2.0, 6.0]
   dt: 0.02
-  max time: 30.0
+  max time: 5.0
   seeds: 100
 snn:
   # Lists allow separate parameters for each spiking layer
-  thresh: [0.2, 0.2]
+  thresh: [0.4, 0.4]
   v rest: [0.0, 0.0]
   alpha v: [0.2, 0.2]
   alpha t: [1.0, 1.0]
-  alpha thresh: [0.2]
+  alpha thresh: [0.2, 0.2]
   tau v: [0.8, 0.8]
   tau t: [0.8, 0.8]
-  tau thresh: [0.9]
+  tau thresh: [0.9, 0.9]
   refrac: [0, 0]
   dt: 1
   delay: 0
