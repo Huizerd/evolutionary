@@ -56,8 +56,20 @@ class SNN(SNNNetwork):
 
         # Neurons
         self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
-        self.neuron1 = AdaptiveLIFNeuron((1, 1, hidden), *n_hid_dynamics)
-        self.neuron2 = AdaptiveLIFNeuron((1, 1, outputs), *n_out_dynamics)
+
+        if config["snn"]["neuron"][0] == "regular":
+            self.neuron1 = LIFNeuron((1, 1, hidden), *n_hid_dynamics[:-2])
+        elif config["snn"]["neuron"][0] == "adaptive":
+            self.neuron1 = AdaptiveLIFNeuron((1, 1, hidden), *n_hid_dynamics)
+        else:
+            raise ValueError("Invalid neuron type for hidden layer")
+
+        if config["snn"]["neuron"][1] == "regular":
+            self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics[:-2])
+        elif config["snn"]["neuron"][1] == "adaptive":
+            self.neuron2 = AdaptiveLIFNeuron((1, 1, outputs), *n_out_dynamics)
+        else:
+            raise ValueError("Invalid neuron type for output layer")
 
         # Connections
         self.fc1 = Linear(inputs, hidden, *c_dynamics)
@@ -85,17 +97,29 @@ class SNN(SNNNetwork):
         # Go over all genes that have to be mutated
         for gene in genes:
             for child in self.children():
-                if hasattr(child, gene):
-                    if gene == "weight":
-                        weight = getattr(child, gene)
-                        # Uniform in range [-w - 0.05, 2w + 0.05]
-                        mutation = (3.0 * torch.rand_like(weight) - 1.0) * weight + (
-                            2.0 * torch.rand_like(weight) - 1.0
-                        ) * 0.05
-                        # .data is needed to access parameter
-                        weight.data = torch.where(
-                            torch.rand_like(weight) < mutation_rate, mutation, weight
-                        )
+                if hasattr(child, gene) and gene == "weight":
+                    param = getattr(child, gene)
+                    # Uniform in range [-w - 0.05, 2w + 0.05]
+                    mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
+                        2.0 * torch.rand_like(param) - 1.0
+                    ) * 0.05
+                    # .data is needed to access parameter
+                    param.data = torch.where(
+                        torch.rand_like(param) < mutation_rate, mutation, param
+                    )
+                elif hasattr(child, gene) and gene in [
+                    "alpha_v",
+                    "alpha_t",
+                    "alpha_thresh",
+                    "tau_v",
+                    "tau_t",
+                    "tau_thresh",
+                ]:
+                    param = getattr(child, gene)
+                    if torch.rand(1).item() < mutation_rate:
+                        # Same for all neurons in layer!
+                        # Works because the sensible range for all of these parameters is [0, 1]
+                        param.uniform_(0.0, 1.0)
 
     def _scale_input(self, input):
         return input / self.in_scale + self.in_offset
@@ -107,11 +131,6 @@ class SNN(SNNNetwork):
             # Clamp first half to positive, second half to negative
             self.input[..., :2].clamp_(min=0)
             self.input[..., 2:].clamp_(max=0)
-            # TODO: but when divergence is now zero, our action will go to zero as well!
-            # TODO: so use offset to guarantee firing?
-            # TODO: or decode action with an offset = thrust for hover?
-            # TODO: or two output neurons as well??
-            # TODO: no need for maximum clamping, because neuron saturation takes care of that right?
             return self.input.abs()
         else:
             # Clamp divergence to bounds to prevent negative firing rate

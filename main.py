@@ -31,7 +31,14 @@ def main(config, debug=False, no_plot=False):
     # Don't bother with determinism since tournament is stochastic!
 
     # MP
-    pool = multiprocessing.Pool(processes=multiprocessing.cpu_count() // 4)
+    # Detect GCP or local
+    if multiprocessing.cpu_count() > 8:
+        processes = multiprocessing.cpu_count() - 4
+        cloud = True
+    else:
+        processes = multiprocessing.cpu_count() // 4
+        cloud = False
+    pool = multiprocessing.Pool(processes=processes)
 
     # Build network
     network = build_network_partial(config)
@@ -135,9 +142,11 @@ def main(config, debug=False, no_plot=False):
 
     if not debug:
         # Plot population fitness and its relevant part
-        last_pop = vis_population(
-            population, hof, config["evo"]["objectives"], no_plot=no_plot
-        )
+        # Doesn't work in the cloud for some reason
+        if not cloud:
+            last_pop = vis_population(
+                population, hof, config["evo"]["objectives"], no_plot=no_plot
+            )
         last_rel = vis_relevant(
             population, hof, config["evo"]["objectives"], no_plot=no_plot
         )
@@ -147,7 +156,8 @@ def main(config, debug=False, no_plot=False):
         os.makedirs(f"{config['log location']}hof/")
 
         # And log the initial performance
-        last_pop[0].savefig(f"{config['log location']}population_0.png")
+        if not cloud:
+            last_pop[0].savefig(f"{config['log location']}population_0.png")
         if last_rel is not None:
             last_rel[0].savefig(f"{config['log location']}relevant_0.png")
         for i, ind in enumerate(population):
@@ -220,13 +230,14 @@ def main(config, debug=False, no_plot=False):
 
         if not debug:
             # Plot population fitness and the relevant part of it
-            last_pop = vis_population(
-                population,
-                hof,
-                config["evo"]["objectives"],
-                last=last_pop,
-                no_plot=no_plot,
-            )
+            if not cloud:
+                last_pop = vis_population(
+                    population,
+                    hof,
+                    config["evo"]["objectives"],
+                    last=last_pop,
+                    no_plot=no_plot,
+                )
             last_rel = vis_relevant(
                 population,
                 hof,
@@ -242,7 +253,8 @@ def main(config, debug=False, no_plot=False):
                     os.makedirs(f"{config['log location']}parameters_{gen}/")
 
                 # Save population figure
-                last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+                if not cloud:
+                    last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
                 if last_rel is not None:
                     last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
 
@@ -278,10 +290,6 @@ if __name__ == "__main__":
     parser.add_argument("--parameters", nargs="+", default=None)
     args = vars(parser.parse_args())
 
-    print(args["parameters"], type(args["parameters"]))
-    import pdb
-
-    pdb.set_trace()
     # Read config file
     with open(args["config"], "r") as cf:
         config = yaml.full_load(cf)
