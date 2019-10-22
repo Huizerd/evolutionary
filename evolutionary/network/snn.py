@@ -130,6 +130,7 @@ class SNN(SNNNetwork):
                     param += (torch.empty_like(param).uniform_(-0.4, 0.4)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
+                    param.clamp_(0.0, 1.0)
 
     def _scale_input(self, input):
         return input / self.in_scale + self.in_offset
