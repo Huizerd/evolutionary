@@ -17,7 +17,12 @@ from evolutionary.environment.environment import QuadEnv
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.utils.constructors import build_network_partial
+from evolutionary.utils.compile import jit_compile
+from evolutionary.utils.constructors import (
+    build_network_partial,
+    build_individual,
+    build_jit_individual,
+)
 from evolutionary.visualize.vis_network import vis_network, vis_distributions
 from evolutionary.visualize.vis_performance import vis_performance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
@@ -41,7 +46,7 @@ def main(config, debug=False, no_plot=False):
     pool = multiprocessing.Pool(processes=processes)
 
     # Build network
-    network = build_network_partial(config)
+    # network = build_network_partial(config)
 
     # And init environment
     env = QuadEnv(
@@ -82,9 +87,13 @@ def main(config, debug=False, no_plot=False):
     creator.create("Individual", list, fitness=creator.Fitness)
 
     toolbox = base.Toolbox()
+    # toolbox.register(
+    #     "individual", tools.initRepeat, container=creator.Individual, func=network, n=1
+    # )
     toolbox.register(
-        "individual", tools.initRepeat, container=creator.Individual, func=network, n=1
+        "individual", build_individual, container=creator.Individual, config=config
     )
+    # toolbox.register("individual", build_jit_individual, container=creator.Individual, config=config)
     toolbox.register(
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
@@ -281,7 +290,7 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["evolve", "test", "distribute"], default="evolve"
+        "--mode", choices=["evolve", "test", "distribute", "compile"], default="evolve"
     )
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--noplot", action="store_true")
@@ -326,9 +335,18 @@ if __name__ == "__main__":
         vis_network(config, args["parameters"][0], args["debug"], args["noplot"])
         vis_performance(config, args["parameters"][0], args["debug"], args["noplot"])
     elif args["mode"] == "distribute":
-        assert args["parameters"] is not None, "Provide network parameters for testing!"
+        assert (
+            args["parameters"] is not None
+        ), "Provide network parameters for visualization!"
         config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
         config["individual id"] = [s for s in args["parameters"][0].split("/")[-2:-1]]
         vis_distributions(config, args["parameters"], args["debug"], args["noplot"])
+    elif args["mode"] == "compile":
+        assert (
+            args["parameters"] is not None
+        ), "Provide network parameters for compilation!"
+        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
+        config["individual id"] = [s for s in args["parameters"][0].split("/")[-2:]]
+        jit_compile(config, args["parameters"][0])
 
     print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

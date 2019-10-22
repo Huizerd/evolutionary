@@ -21,6 +21,7 @@ class ANN(nn.Module):
         x = F.relu(self.fc1(x))
         return self.fc2(x)
 
+    @torch.jit.ignore
     def mutate(self, genes, mutation_rate=1.0):
         # Go over all genes that have to be mutated
         for gene in genes:
@@ -32,7 +33,17 @@ class ANN(nn.Module):
                         mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
                             2.0 * torch.rand_like(param) - 1.0
                         ) * 0.05
-                        # .data is needed to access parameter
-                        param.data = torch.where(
-                            torch.rand_like(param) < mutation_rate, mutation, param
-                        )
+                        mask = torch.rand_like(param) < mutation_rate
+                        param.masked_scatter_(mask, mutation)
+        # # Input to hidden
+        # mutation = (3.0 * torch.rand_like(self.fc1.weight) - 1.0) * self.fc1.weight + (
+        #     2.0 * torch.rand_like(self.fc1.weight) - 1.0
+        # ) * 0.05
+        # mask = torch.rand_like(self.fc1.weight) < mutation_rate
+        # self.fc1.weight.masked_scatter_(mask, mutation)
+        # # Hidden to output
+        # mutation = (3.0 * torch.rand_like(self.fc2.weight) - 1.0) * self.fc2.weight + (
+        #         2.0 * torch.rand_like(self.fc2.weight) - 1.0
+        # ) * 0.05
+        # mask = torch.rand_like(self.fc2.weight) < mutation_rate
+        # self.fc2.weight.masked_scatter_(mask, mutation)
