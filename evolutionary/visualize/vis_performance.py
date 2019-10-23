@@ -134,7 +134,8 @@ def vis_performance(config, parameters, debug=False, no_plot=False):
 
         # Plot neurons
         if isinstance(network, SNNNetwork):
-            fig, ax = plt.subplots(config["hidden size"], 2, figsize=(10, 10))
+            dpi = 50 if config["hidden size"] > 10 else 100
+            fig, ax = plt.subplots(config["hidden size"], 2, figsize=(20, 20), dpi=dpi)
             for i, (name, recordings) in enumerate(neuron_dict.items()):
                 for var, vals in recordings.items():
                     if len(vals):

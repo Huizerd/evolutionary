@@ -98,6 +98,7 @@ def main(config, debug=False, no_plot=False):
         partial(
             mutate_call_network,
             config["evo"]["genes"],
+            config["evo"]["types"],
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )

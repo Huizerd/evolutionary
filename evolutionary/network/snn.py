@@ -93,32 +93,45 @@ class SNN(SNNNetwork):
 
         return self._decode(spikes, trace, self.neuron2.v_cell)
 
-    def mutate(self, genes, mutation_rate=1.0):
+    def mutate(self, genes, types, mutation_rate=1.0):
         # Go over all genes that have to be mutated
         for gene in genes:
             for child in self.children():
-                if hasattr(child, gene) and gene == "weight":
+                if (
+                    hasattr(child, gene)
+                    and gene == "weight"
+                    and "incremental" not in types
+                ):
                     param = getattr(child, gene)
                     # Uniform in range [-w - 0.05, 2w + 0.05]
                     mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
                         2.0 * torch.rand_like(param) - 1.0
                     ) * 0.05
-                    # .data is needed to access parameter
-                    param.data = torch.where(
-                        torch.rand_like(param) < mutation_rate, mutation, param
-                    )
+                    mask = torch.rand_like(param) < mutation_rate
+                    param.masked_scatter_(mask, mutation)
+                elif (
+                    hasattr(child, gene) and gene == "weight" and "incremental" in types
+                ):
+                    param = getattr(child, gene)
+                    # Uniform increase/decrease from [-2, 2]
+                    param += (torch.empty_like(param).uniform_(-2.0, 2.0)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
                 elif hasattr(child, gene) and gene in [
                     "alpha_v",
                     "alpha_t",
                     "alpha_thresh",
-                    "tau_v",
-                    "tau_t",
-                    "tau_thresh",
                 ]:
                     param = getattr(child, gene)
                     if torch.rand(1).item() < mutation_rate:
                         # Same for all neurons in layer!
-                        # Works because the sensible range for all of these parameters is [0, 1]
+                        # Works because a sensible range for all alphas is [0, 2]
+                        param.uniform_(0.0, 2.0)
+                elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
+                    param = getattr(child, gene)
+                    if torch.rand(1).item() < mutation_rate:
+                        # Same for all neurons in layer!
+                        # Works because all taus are [0, 1]
                         param.uniform_(0.0, 1.0)
                 elif (
                     hasattr(child, gene)
@@ -140,8 +153,8 @@ class SNN(SNNNetwork):
             # Repeat to have: (div, divdot, div, divdot)
             self.input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
-            self.input[..., :2].clamp_(min=0)
-            self.input[..., 2:].clamp_(max=0)
+            self.input[..., :2].clamp_(min=0.0)
+            self.input[..., 2:].clamp_(max=0.0)
             return self.input.abs()
         else:
             # Clamp divergence to bounds to prevent negative firing rate
@@ -168,6 +181,17 @@ class SNN(SNNNetwork):
                     self.output_bounds
                 )
                 return output[trace.argmax()].view(-1)
+            elif self.decoding == "weighted trace":
+                trace = out_trace.view(-1)
+                if trace.sum() > 0.0:
+                    output = (
+                        trace * torch.tensor([-0.5, -0.2, 0.0, 0.2, 0.5])
+                    ).sum() / trace.sum()
+                    return output.view(-1)
+                else:
+                    return torch.tensor([0.0])
+            elif self.decoding == "weighted trace inhibited":
+                raise NotImplementedError("Inhibition variant not yet implemented")
             elif self.decoding == "potential":
                 volt = out_volt.view(-1)
                 output = (volt - volt.flip(0)).abs() * torch.tensor(self.output_bounds)

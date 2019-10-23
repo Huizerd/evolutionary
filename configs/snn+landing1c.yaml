@@ -3,7 +3,7 @@ log interval: 20
 network: SNN
 double neurons: True
 double actions: True
-hidden size: 20
+hidden size: 4
 evo:
   gens: 200
   pop size: 100

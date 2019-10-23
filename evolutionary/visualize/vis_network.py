@@ -25,7 +25,7 @@ def vis_network(config, parameters, debug=False, no_plot=False):
         param_max = max([p.max().item() for p in params.values()])
 
         # Build figure
-        fig, axs = plt.subplots(2, len(params))
+        fig, axs = plt.subplots(2, len(params), squeeze=False)
         for i, (name, param) in zip(range(axs.shape[1]), params.items()):
             # Colored value plots
             if gene == "weight":
@@ -44,7 +44,10 @@ def vis_network(config, parameters, debug=False, no_plot=False):
                 axs[0, i].set_xlabel("post neuron id")
             else:
                 im = axs[0, i].imshow(
-                    param.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
+                    param.view(1, 1).numpy(),
+                    cmap="plasma",
+                    vmin=param_min,
+                    vmax=param_max,
                 )
             axs[0, i].set_title(f"{gene}: {name}")
             fig.colorbar(im, ax=axs[0, i], orientation="vertical", fraction=0.1)
@@ -115,7 +118,7 @@ def vis_distributions(config, parameters, debug=False, no_plot=False):
         param_max = max([p.max().item() for p in params.values()])
 
         # Build figure
-        fig, axs = plt.subplots(2, len(params))
+        fig, axs = plt.subplots(2, len(params), squeeze=False)
         for i, (name, param), (_, param_avg) in zip(
             range(axs.shape[1]), params.items(), params_avg.items()
         ):
@@ -136,7 +139,10 @@ def vis_distributions(config, parameters, debug=False, no_plot=False):
                 axs[0, i].set_xlabel("post neuron id")
             else:
                 im = axs[0, i].imshow(
-                    param_avg.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
+                    param_avg.view(1, 1).numpy(),
+                    cmap="plasma",
+                    vmin=param_min,
+                    vmax=param_max,
                 )
             axs[0, i].set_title(f"{gene}: {name}")
             fig.colorbar(im, ax=axs[0, i], orientation="vertical", fraction=0.1)

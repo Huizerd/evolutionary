@@ -14,7 +14,7 @@ def build_network(config):
         else:
             inputs = 2
         if config["double actions"]:
-            outputs = 2
+            outputs = 2 if config["snn"]["decoding"] != "weighted trace" else 5
         else:
             outputs = 1
         network = SNN(inputs, config["hidden size"], outputs, config)
@@ -34,7 +34,7 @@ def build_network_partial(config):
         else:
             inputs = 2
         if config["double actions"]:
-            outputs = 2
+            outputs = 2 if config["snn"]["decoding"] != "weighted trace" else 5
         else:
             outputs = 1
         network = partial(SNN, inputs, config["hidden size"], outputs, config)

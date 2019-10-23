@@ -43,4 +43,4 @@ snn:
   input offset: 1.0
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  decoding: sum trace
+  decoding: weighted trace
