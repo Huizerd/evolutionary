@@ -306,7 +306,7 @@ if __name__ == "__main__":
         if args["verbose"]:
             # Create folders based on time stamp
             timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
-                "%y-%m-%d_%H-%M-%S"
+                "%H-%M-%S_%y-%m-%d"
             )
             config["log location"] += "_".join(args["tags"]) + "+" + timestamp + "/"
             config["fig location"] = config["log location"] + "population_figs/"
@@ -337,8 +337,8 @@ if __name__ == "__main__":
         if os.path.exists(config["log location"]):
             shutil.rmtree(config["log location"])
         os.makedirs(config["log location"])
-        # vis_network(config, args["parameters"], args["verbose"])
-        # vis_performance(config, args["parameters"], args["verbose"])
+        vis_network(config, args["parameters"], args["verbose"])
+        vis_performance(config, args["parameters"], args["verbose"])
         vis_disturbance(config, args["parameters"], args["verbose"])
     elif args["mode"] == "summarize":
         # Check if single set of parameters were supplied

@@ -2,8 +2,8 @@ log location: logs/
 log interval: 20
 network: SNN
 double neurons: True
-double actions: True
-hidden size: 4
+double actions: False
+hidden size: 20
 evo:
   gens: 200
   pop size: 100
@@ -43,4 +43,4 @@ snn:
   input offset: 1.0
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  decoding: sum trace
+  decoding: trace

@@ -3,7 +3,7 @@ log interval: 20
 network: SNN
 double neurons: True
 double actions: True
-hidden size: 8
+hidden size: 20
 evo:
   gens: 200
   pop size: 100
@@ -20,7 +20,7 @@ env:
   thrust bounds: [-0.8, 0.5]  # in G's
   thrust tc: [0.02, 0.1]
   settle: 1.0
-  wind: 0.1
+  wind: 0.0
   h0: [2.0, 4.0, 6.0, 8.0]
   dt: 0.02
   max time: 30.0

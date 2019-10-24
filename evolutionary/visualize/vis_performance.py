@@ -34,6 +34,12 @@ def vis_performance(config, parameters, verbose=2):
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
 
+    # Determine encoding
+    if isinstance(network, SNNNetwork):
+        double = config["double neurons"]
+    else:
+        double = False
+
     # Go over all heights we trained for
     for h in h0:
         # Reset network and env
@@ -105,19 +111,25 @@ def vis_performance(config, parameters, verbose=2):
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
         axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-        if encoding_list:
+        if double:
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
+        elif encoding_list and not double:
+            axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded D")
         axs_p[3].set_ylabel("divergence")
         # Divergence dot
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-        if encoding_list:
+        if double:
             axs_p[4].plot(
                 time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot"
             )
             axs_p[4].plot(
                 time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot"
+            )
+        elif encoding_list and not double:
+            axs_p[4].plot(
+                time_list, np.array(encoding_list)[:, 1], label="Encoded Ddot"
             )
         axs_p[4].set_ylabel("divergence dot")
         axs_p[4].set_xlabel("Time")
@@ -172,10 +184,16 @@ def vis_disturbance(config, parameters, verbose=2):
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
 
+    # Determine encoding
+    if isinstance(network, SNNNetwork):
+        double = config["double neurons"]
+    else:
+        double = False
+
     # Reset network and env
     if isinstance(network, SNNNetwork):
         network.reset_state()
-    obs = env.reset()
+    obs = env.reset(h0=config["env"]["h0"][1])
     done = False
 
     # For plotting
@@ -226,7 +244,7 @@ def vis_disturbance(config, parameters, verbose=2):
             obs, _, done, _ = env.step(action)
             env.unset_disturbance()
         elif env.steps == 200:
-            env.set_disturbance(0.0, 2000.0)
+            env.set_disturbance(0.0, -2000.0)
             obs, _, done, _ = env.step(action)
             env.unset_disturbance()
         else:
@@ -250,16 +268,20 @@ def vis_disturbance(config, parameters, verbose=2):
     # Divergence
     axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
     axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-    if encoding_list:
+    if double:
         axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
         axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
+    elif encoding_list and not double:
+        axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded D")
     axs_p[3].set_ylabel("divergence")
     # Divergence dot
     axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
     axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-    if encoding_list:
+    if double:
         axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot")
         axs_p[4].plot(time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot")
+    elif encoding_list and not double:
+        axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded Ddot")
     axs_p[4].set_ylabel("divergence dot")
     axs_p[4].set_xlabel("Time")
 

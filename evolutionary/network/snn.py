@@ -117,6 +117,7 @@ class SNN(SNNNetwork):
                     param += (torch.empty_like(param).uniform_(-2.0, 2.0)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
+                    param.clamp_(-2.0, 2.0)
                 elif hasattr(child, gene) and gene in [
                     "alpha_v",
                     "alpha_t",
@@ -159,7 +160,8 @@ class SNN(SNNNetwork):
         else:
             # Clamp divergence to bounds to prevent negative firing rate
             input.clamp_(-self.in_scale, self.in_scale)
-            return self._scale_input(input)
+            self.input = self._scale_input(input)
+            return self.input
 
     def _scale_output(self, output):
         return self.output_bounds[0] + (
@@ -185,9 +187,9 @@ class SNN(SNNNetwork):
                 trace = out_trace.view(-1)
                 if trace.sum() > 0.0:
                     output = (
-                        trace * torch.tensor([-0.5, -0.2, 0.0, 0.2, 0.5])
+                        trace * torch.tensor([-0.8, -0.4, 0.0, 0.4, 0.8])
                     ).sum() / trace.sum()
-                    return output.view(-1)
+                    return output.view(-1) * 9.81
                 else:
                     return torch.tensor([0.0])
             elif self.decoding == "weighted trace inhibited":
