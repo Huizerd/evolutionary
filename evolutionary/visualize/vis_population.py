@@ -9,38 +9,46 @@ def vis_relevant(population, hof, obj_labels, runs, last=None, verbose=2):
     obj_limits = []
     for obj in obj_labels:
         if obj == "unsigned divergence" or obj == "signed divergence":
-            obj_limits.append(250.0 * runs)
+            obj_limits.append(250.0)
         elif obj == "final offset" or obj == "final offset 5m":
-            obj_limits.append(1.0 * runs)
+            obj_limits.append(1.0)
         elif obj == "time to land":
-            obj_limits.append(10.0 * runs)
+            obj_limits.append(10.0)
         elif obj == "final velocity":
-            obj_limits.append(3.0 * runs)
+            obj_limits.append(3.0)
         elif obj == "final velocity linear":
-            obj_limits.append(2.0 * runs)
+            obj_limits.append(2.0)
         else:
             obj_limits.append(np.inf)
 
     # Get relevant fitness values
-    fitnesses = (
-        np.array(
-            [
-                ind.fitness.values + (i,)
-                for i, ind in enumerate(population)
-                if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
-            ]
-        )
-        / runs
+    fitnesses = np.array(
+        [
+            [v / runs for v in ind.fitness.values] + [i]
+            for i, ind in enumerate(population)
+            if all(
+                [
+                    f < lim
+                    for f, lim in zip(
+                        [v / runs for v in ind.fitness.values], obj_limits
+                    )
+                ]
+            )
+        ]
     )
-    fitnesses_hof = (
-        np.array(
-            [
-                ind.fitness.values + (i,)
-                for i, ind in enumerate(hof)
-                if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
-            ]
-        )
-        / runs
+    fitnesses_hof = np.array(
+        [
+            [v / runs for v in ind.fitness.values] + [i]
+            for i, ind in enumerate(hof)
+            if all(
+                [
+                    f < lim
+                    for f, lim in zip(
+                        [v / runs for v in ind.fitness.values], obj_limits
+                    )
+                ]
+            )
+        ]
     )
 
     # Create figure and axis if not there, else unpack or leave
