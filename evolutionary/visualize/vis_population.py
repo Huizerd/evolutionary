@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_relevant(population, hof, obj_labels, no_plot=False, last=None):
+def vis_relevant(population, hof, obj_labels, last=None, verbose=2):
     # Set indices and limits based on labels
     assert len(obj_labels) == 3, "Only 3 objectives are supported"
     obj_limits = []
@@ -79,14 +79,14 @@ def vis_relevant(population, hof, obj_labels, no_plot=False, last=None):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    if not no_plot:
+    if verbose == 2:
         fig.canvas.draw()
         fig.canvas.flush_events()
 
     return fig, ax
 
 
-def vis_population(population, hof, obj_labels, no_plot=False, last=None):
+def vis_population(population, hof, obj_labels, last=None, verbose=2):
     # Create figure and axis if not there, else unpack
     if last is None:
         plt.ion()
@@ -126,7 +126,7 @@ def vis_population(population, hof, obj_labels, no_plot=False, last=None):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    if not no_plot:
+    if verbose == 2:
         fig.canvas.draw()
         fig.canvas.flush_events()
 

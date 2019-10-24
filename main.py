@@ -3,6 +3,7 @@ import datetime, time
 import multiprocessing
 import os
 import random
+import shutil
 from functools import partial
 from itertools import chain
 from shutil import copyfile
@@ -19,7 +20,7 @@ from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial
 from evolutionary.visualize.vis_network import vis_network, vis_distributions
-from evolutionary.visualize.vis_performance import vis_performance
+from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 
@@ -27,7 +28,7 @@ from evolutionary.visualize.vis_population import vis_population, vis_relevant
 np.set_printoptions(suppress=True)
 
 
-def main(config, debug=False, no_plot=False):
+def main(config, verbose):
     # Don't bother with determinism since tournament is stochastic!
 
     # MP
@@ -141,15 +142,15 @@ def main(config, debug=False, no_plot=False):
     # Update hall of fame
     hof.update(population)
 
-    if not debug:
+    if verbose:
         # Plot population fitness and its relevant part
         # Doesn't work in the cloud for some reason
         if not cloud:
             last_pop = vis_population(
-                population, hof, config["evo"]["objectives"], no_plot=no_plot
+                population, hof, config["evo"]["objectives"], verbose=verbose
             )
         last_rel = vis_relevant(
-            population, hof, config["evo"]["objectives"], no_plot=no_plot
+            population, hof, config["evo"]["objectives"], verbose=verbose
         )
 
         # Create folders for parameters
@@ -158,9 +159,9 @@ def main(config, debug=False, no_plot=False):
 
         # And log the initial performance
         if not cloud:
-            last_pop[0].savefig(f"{config['log location']}population_0.png")
+            last_pop[0].savefig(f"{config['fig location']}population_0.png")
         if last_rel is not None:
-            last_rel[0].savefig(f"{config['log location']}relevant_0.png")
+            last_rel[0].savefig(f"{config['fig location']}relevant_0.png")
         for i, ind in enumerate(population):
             torch.save(
                 ind[0].state_dict(),
@@ -229,7 +230,7 @@ def main(config, debug=False, no_plot=False):
         )
         print(logbook.stream)
 
-        if not debug:
+        if verbose:
             # Plot population fitness and the relevant part of it
             if not cloud:
                 last_pop = vis_population(
@@ -237,14 +238,14 @@ def main(config, debug=False, no_plot=False):
                     hof,
                     config["evo"]["objectives"],
                     last=last_pop,
-                    no_plot=no_plot,
+                    verbose=verbose,
                 )
             last_rel = vis_relevant(
                 population,
                 hof,
                 config["evo"]["objectives"],
                 last=last_rel,
-                no_plot=no_plot,
+                verbose=verbose,
             )
 
             # Log every so many generations
@@ -255,9 +256,9 @@ def main(config, debug=False, no_plot=False):
 
                 # Save population figure
                 if not cloud:
-                    last_pop[0].savefig(f"{config['log location']}population_{gen}.png")
+                    last_pop[0].savefig(f"{config['fig location']}population_{gen}.png")
                 if last_rel is not None:
-                    last_rel[0].savefig(f"{config['log location']}relevant_{gen}.png")
+                    last_rel[0].savefig(f"{config['fig location']}relevant_{gen}.png")
 
                 # Save parameters of entire population and hall of fame
                 for i, ind in enumerate(population):
@@ -282,10 +283,9 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["evolve", "test", "distribute"], default="evolve"
+        "--mode", choices=["evolve", "test", "summarize"], default="evolve"
     )
-    parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--noplot", action="store_true")
+    parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=2)
     parser.add_argument("--config", type=str, required=True, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", nargs="+", default=None)
@@ -295,41 +295,68 @@ if __name__ == "__main__":
     with open(args["config"], "r") as cf:
         config = yaml.full_load(cf)
 
-    # Create folders based on time stamp
-    start_time = time.time()
-    timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
-        "%Y-%m-%d_%H:%M:%S"
-    )
-    config["log location"] += timestamp + "/"
-    if (
-        not os.path.exists(config["log location"])
-        and args["mode"] == "evolve"
-        and not args["debug"]
-    ):
-        os.makedirs(config["log location"])
-        # Save config file there for reference
-        copyfile(args["config"], config["log location"] + "config.yaml")
-        # Save tags here
-        assert (
-            args["tags"] is not None
-        ), "Provide tags for identifying a run! Prefix with @"
-        with open(config["log location"] + "tags.txt", "w") as f:
-            f.write(" ".join(args["tags"]))
-
+    # Modes of execution
     if args["mode"] == "evolve":
-        main(config, args["debug"], args["noplot"])
-    elif args["mode"] == "test":
-        assert args["parameters"] is not None, "Provide network parameters for testing!"
-        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
-        config["individual id"] = [
-            s.replace(".net", "") for s in args["parameters"][0].split("/")[-2:]
-        ]
-        vis_network(config, args["parameters"][0], args["debug"], args["noplot"])
-        vis_performance(config, args["parameters"][0], args["debug"], args["noplot"])
-    elif args["mode"] == "distribute":
-        assert args["parameters"] is not None, "Provide network parameters for testing!"
-        config["log location"] = "/".join(args["config"].split("/")[:-1]) + "/"
-        config["individual id"] = [s for s in args["parameters"][0].split("/")[-2:-1]]
-        vis_distributions(config, args["parameters"], args["debug"], args["noplot"])
+        # Check if we supplied tags for identification
+        assert args["tags"] is not None, "Provide tags for identifying a run!"
+        # Start time
+        start_time = time.time()
 
-    print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Create folders based on time stamp
+            timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
+                "%y-%m-%d_%H-%M-%S"
+            )
+            config["log location"] += "_".join(args["tags"]) + "+" + timestamp + "/"
+            config["fig location"] = config["log location"] + "population_figs/"
+            os.makedirs(config["log location"])
+            os.makedirs(config["fig location"])
+
+            # Save config file and tags there
+            copyfile(args["config"], config["log location"] + "config.yaml")
+            with open(config["log location"] + "tags.txt", "w") as f:
+                f.write(" ".join(args["tags"]))
+
+        # Run main
+        main(config, args["verbose"])
+
+        print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
+    elif args["mode"] == "test":
+        # Check if single set of parameters were supplied
+        assert len(args["parameters"]) == 1, "Provide a single network for testing!"
+        args["parameters"] = args["parameters"][0]
+
+        # Set log location to the one supplied
+        individual_id = "_".join(
+            [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
+        )
+        config["log location"] = (
+            "/".join(args["config"].split("/")[:-1]) + "/test+" + individual_id + "/"
+        )
+        if os.path.exists(config["log location"]):
+            shutil.rmtree(config["log location"])
+        os.makedirs(config["log location"])
+        # vis_network(config, args["parameters"], args["verbose"])
+        # vis_performance(config, args["parameters"], args["verbose"])
+        vis_disturbance(config, args["parameters"], args["verbose"])
+    elif args["mode"] == "summarize":
+        # Check if single set of parameters were supplied
+        assert (
+            len(args["parameters"]) > 1
+        ), "Provide multiple networks for visualization!"
+
+        # Set log location to the one supplied
+        individual_id = "_".join(
+            [s.replace(".net", "") for s in args["parameters"][0].split("/")[-2:-1]]
+        )
+        config["log location"] = (
+            "/".join(args["config"].split("/")[:-1])
+            + "/distribution+"
+            + individual_id
+            + "/"
+        )
+        if os.path.exists(config["log location"]):
+            shutil.rmtree(config["log location"])
+        os.makedirs(config["log location"])
+        vis_distributions(config, args["parameters"], args["verbose"])

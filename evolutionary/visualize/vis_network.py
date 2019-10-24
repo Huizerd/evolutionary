@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from evolutionary.utils.constructors import build_network
 
 
-def vis_network(config, parameters, debug=False, no_plot=False):
+def vis_network(config, parameters, verbose=2):
     # Load network
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
@@ -34,7 +34,7 @@ def vis_network(config, parameters, debug=False, no_plot=False):
                 )
                 axs[0, i].set_xlabel("post neuron id")
                 axs[0, i].set_ylabel("pre neuron id")
-            elif gene == "bias":
+            elif gene == "thresh" or gene == "bias":
                 im = axs[0, i].imshow(
                     param.view(1, -1).numpy(),
                     cmap="plasma",
@@ -70,18 +70,14 @@ def vis_network(config, parameters, debug=False, no_plot=False):
 
         fig.tight_layout()
 
-        if not debug:
-            fig.savefig(
-                f"{config['log location']}{gene}+{'_'.join(config['individual id'])}.png"
-            )
+        if verbose:
+            fig.savefig(f"{config['log location']}{gene}.png")
 
-    if not debug and not no_plot:
+    if verbose == 2:
         plt.show()
 
 
-def vis_distributions(config, parameters, debug=False, no_plot=False):
-    assert len(parameters) > 1, "Include more than one network file for analysis"
-
+def vis_distributions(config, parameters, verbose=2):
     # Get empty network, and fill with first set of parameters (needed for init)
     network = build_network(config)
     network.load_state_dict(torch.load(parameters[0]))
@@ -129,7 +125,7 @@ def vis_distributions(config, parameters, debug=False, no_plot=False):
                 )
                 axs[0, i].set_xlabel("post neuron id")
                 axs[0, i].set_ylabel("pre neuron id")
-            elif gene == "bias":
+            elif gene == "thresh" or gene == "bias":
                 im = axs[0, i].imshow(
                     param_avg.view(1, -1).numpy(),
                     cmap="plasma",
@@ -165,10 +161,8 @@ def vis_distributions(config, parameters, debug=False, no_plot=False):
 
         fig.tight_layout()
 
-        if not debug:
-            fig.savefig(
-                f"{config['log location']}{gene}+distribution+{'_'.join(config['individual id'])}.png"
-            )
+        if verbose:
+            fig.savefig(f"{config['log location']}{gene}.png")
 
-    if not debug and not no_plot:
+    if verbose == 2:
         plt.show()
