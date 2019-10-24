@@ -69,6 +69,7 @@ def main(config, verbose):
         "final offset",
         "final offset 5m",
         "final velocity",
+        "final velocity linear",
         "unsigned divergence",
         "signed divergence",
         "dummy",
@@ -147,10 +148,18 @@ def main(config, verbose):
         # Doesn't work in the cloud for some reason
         if not cloud:
             last_pop = vis_population(
-                population, hof, config["evo"]["objectives"], verbose=verbose
+                population,
+                hof,
+                config["evo"]["objectives"],
+                len(config["env"]["h0"]),
+                verbose=verbose,
             )
         last_rel = vis_relevant(
-            population, hof, config["evo"]["objectives"], verbose=verbose
+            population,
+            hof,
+            config["evo"]["objectives"],
+            len(config["env"]["h0"]),
+            verbose=verbose,
         )
 
         # Create folders for parameters
@@ -237,6 +246,7 @@ def main(config, verbose):
                     population,
                     hof,
                     config["evo"]["objectives"],
+                    len(config["env"]["h0"]),
                     last=last_pop,
                     verbose=verbose,
                 )
@@ -244,6 +254,7 @@ def main(config, verbose):
                 population,
                 hof,
                 config["evo"]["objectives"],
+                len(config["env"]["h0"]),
                 last=last_rel,
                 verbose=verbose,
             )

@@ -40,9 +40,11 @@ def evaluate(valid_objectives, config, env, h0, individual):
         if env.t >= env.max_t or env.state[0] >= env.MAX_H:
             objectives["time to land"] += env.max_t
             objectives["final velocity"] += 4.0
+            objectives["final velocity linear"] += 4.0
         else:
-            objectives["time to land"] += env.t
+            objectives["time to land"] += env.t - config["env"]["settle"]
             objectives["final velocity"] += env.state[1] * env.state[1]
+            objectives["final velocity linear"] += abs(env.state[1])
 
         # Final height and final offset
         objectives["final height"] += env.state[0]

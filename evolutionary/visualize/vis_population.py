@@ -3,36 +3,44 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
-def vis_relevant(population, hof, obj_labels, last=None, verbose=2):
+def vis_relevant(population, hof, obj_labels, runs, last=None, verbose=2):
     # Set indices and limits based on labels
     assert len(obj_labels) == 3, "Only 3 objectives are supported"
     obj_limits = []
     for obj in obj_labels:
         if obj == "unsigned divergence" or obj == "signed divergence":
-            obj_limits.append(1000.0)
+            obj_limits.append(250.0 * runs)
         elif obj == "final offset" or obj == "final offset 5m":
-            obj_limits.append(4.0)
+            obj_limits.append(1.0 * runs)
         elif obj == "time to land":
-            obj_limits.append(40.0)
+            obj_limits.append(10.0 * runs)
         elif obj == "final velocity":
-            obj_limits.append(10.0)
+            obj_limits.append(3.0 * runs)
+        elif obj == "final velocity linear":
+            obj_limits.append(2.0 * runs)
         else:
             obj_limits.append(np.inf)
 
     # Get relevant fitness values
-    fitnesses = np.array(
-        [
-            ind.fitness.values + (i,)
-            for i, ind in enumerate(population)
-            if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
-        ]
+    fitnesses = (
+        np.array(
+            [
+                ind.fitness.values + (i,)
+                for i, ind in enumerate(population)
+                if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
+            ]
+        )
+        / runs
     )
-    fitnesses_hof = np.array(
-        [
-            ind.fitness.values + (i,)
-            for i, ind in enumerate(hof)
-            if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
-        ]
+    fitnesses_hof = (
+        np.array(
+            [
+                ind.fitness.values + (i,)
+                for i, ind in enumerate(hof)
+                if all([f < lim for f, lim in zip(ind.fitness.values, obj_limits)])
+            ]
+        )
+        / runs
     )
 
     # Create figure and axis if not there, else unpack or leave
@@ -86,7 +94,7 @@ def vis_relevant(population, hof, obj_labels, last=None, verbose=2):
     return fig, ax
 
 
-def vis_population(population, hof, obj_labels, last=None, verbose=2):
+def vis_population(population, hof, obj_labels, runs, last=None, verbose=2):
     # Create figure and axis if not there, else unpack
     if last is None:
         plt.ion()
@@ -99,8 +107,8 @@ def vis_population(population, hof, obj_labels, last=None, verbose=2):
     ax.cla()
 
     # Get all fitness values and plot
-    fitnesses = np.array([ind.fitness.values for ind in population])
-    fitnesses_hof = np.array([ind.fitness.values for ind in hof])
+    fitnesses = np.array([ind.fitness.values for ind in population]) / runs
+    fitnesses_hof = np.array([ind.fitness.values for ind in hof]) / runs
     ax.scatter(fitnesses[:, 0], fitnesses[:, 1], fitnesses[:, 2])
     ax.scatter(fitnesses_hof[:, 0], fitnesses_hof[:, 1], fitnesses_hof[:, 2])
 
