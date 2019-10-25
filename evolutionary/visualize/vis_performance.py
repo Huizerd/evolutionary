@@ -28,7 +28,6 @@ def vis_performance(config, parameters, verbose=2):
         max_t=config["env"]["max time"],
         seed=None,
     )
-    h0 = config["env"]["h0"]
 
     # Load network
     network = build_network(config)
@@ -41,7 +40,7 @@ def vis_performance(config, parameters, verbose=2):
         double = False
 
     # Go over all heights we trained for
-    for h in h0:
+    for h in config["env"]["h0"]:
         # Reset network and env
         if isinstance(network, SNNNetwork):
             network.reset_state()
@@ -158,7 +157,7 @@ def vis_performance(config, parameters, verbose=2):
             if verbose:
                 fig.savefig(f"{config['log location']}neurons+{int(h)}m.png")
 
-        if verbose == 2:
+        if verbose > 1:
             plt.show()
 
 
@@ -309,5 +308,5 @@ def vis_disturbance(config, parameters, verbose=2):
         if verbose:
             fig.savefig(f"{config['log location']}disturbance+neurons.png")
 
-    if verbose == 2:
+    if verbose > 1:
         plt.show()

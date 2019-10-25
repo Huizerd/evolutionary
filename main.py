@@ -19,7 +19,8 @@ from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial
-from evolutionary.visualize.vis_network import vis_network, vis_distributions
+from evolutionary.visualize.vis_comparison import vis_comparison
+from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
@@ -221,6 +222,14 @@ def main(config, verbose):
         for ind, fit in zip(offspring, fitnesses):
             ind.fitness.values = fit
 
+        # TODO: remove below
+        equal = 0
+        for i, ind1 in enumerate(population + offspring):
+            for ind2 in (population + offspring)[i:]:
+                if ind1.fitness.values == ind2.fitness.values:
+                    equal += 1
+        print(f"No. of identical fitnesses: {equal}")
+
         # Update the hall of fame with the offspring,
         # so we get the best of population + offspring in there
         # Population again since we re-evaluated it
@@ -293,21 +302,23 @@ def main(config, verbose):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=["train", "test", "compare"], default="train")
     parser.add_argument(
-        "--mode", choices=["evolve", "test", "summarize"], default="evolve"
-    )
-    parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=2)
-    parser.add_argument("--config", type=str, required=True, default=None)
+        "--verbose", type=int, choices=[0, 1, 2, 3], default=2
+    )  # 3 for saving values, not yet implemented
+    parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", nargs="+", default=None)
+    parser.add_argument("--comparison", type=str, default=None)
     args = vars(parser.parse_args())
 
-    # Read config file
-    with open(args["config"], "r") as cf:
-        config = yaml.full_load(cf)
-
     # Modes of execution
-    if args["mode"] == "evolve":
+    if args["mode"] == "train":
+        # Read config file
+        assert args["config"] is not None, "Training needs a single configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
         # Check if we supplied tags for identification
         assert args["tags"] is not None, "Provide tags for identifying a run!"
         # Start time
@@ -334,6 +345,11 @@ if __name__ == "__main__":
 
         print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
     elif args["mode"] == "test":
+        # Read config file
+        assert args["config"] is not None, "Testing needs a single configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
         # Check if single set of parameters were supplied
         assert len(args["parameters"]) == 1, "Provide a single network for testing!"
         args["parameters"] = args["parameters"][0]
@@ -351,23 +367,36 @@ if __name__ == "__main__":
         vis_network(config, args["parameters"], args["verbose"])
         vis_performance(config, args["parameters"], args["verbose"])
         vis_disturbance(config, args["parameters"], args["verbose"])
-    elif args["mode"] == "summarize":
-        # Check if single set of parameters were supplied
-        assert (
-            len(args["parameters"]) > 1
-        ), "Provide multiple networks for visualization!"
+    elif args["mode"] == "compare":
+        # Load config files
+        assert args["comparison"] is not None, "Comparison needs a yaml file"
+        with open(args["comparison"], "r") as cf:
+            comparison = yaml.full_load(cf)
+            configs = []
+            for conf in comparison["configs"]:
+                with open(conf, "r") as ccf:
+                    configs.append(yaml.full_load(ccf))
 
-        # Set log location to the one supplied
-        individual_id = "_".join(
-            [s.replace(".net", "") for s in args["parameters"][0].split("/")[-2:-1]]
-        )
-        config["log location"] = (
-            "/".join(args["config"].split("/")[:-1])
-            + "/distribution+"
-            + individual_id
-            + "/"
-        )
-        if os.path.exists(config["log location"]):
-            shutil.rmtree(config["log location"])
-        os.makedirs(config["log location"])
-        vis_distributions(config, args["parameters"], args["verbose"])
+        # Check if we supplied tags for identification
+        assert args["tags"] is not None, "Provide tags for identifying a run!"
+        # Start time
+        start_time = time.time()
+
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Create folders based on time stamp
+            timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
+                "%H-%M-%S_%y-%m-%d"
+            )
+            comparison["log location"] += (
+                "comparison" + "_".join(args["tags"]) + "+" + timestamp + "/"
+            )
+            os.makedirs(comparison["log location"])
+
+            # Save comparison file and tags there
+            copyfile(args["compare"], comparison["log location"] + "comparison.yaml")
+            with open(comparison["log location"] + "tags.txt", "w") as f:
+                f.write(" ".join(args["tags"]))
+
+        # Perform comparison
+        vis_comparison(configs, comparison, args["verbose"])

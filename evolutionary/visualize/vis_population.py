@@ -95,7 +95,7 @@ def vis_relevant(population, hof, obj_labels, runs, last=None, verbose=2):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    if verbose == 2:
+    if verbose > 1:
         fig.canvas.draw()
         fig.canvas.flush_events()
 
@@ -142,7 +142,7 @@ def vis_population(population, hof, obj_labels, runs, last=None, verbose=2):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    if verbose == 2:
+    if verbose > 1:
         fig.canvas.draw()
         fig.canvas.flush_events()
 
