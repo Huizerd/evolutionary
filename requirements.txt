@@ -1,2 +1,3 @@
+-e git+https://github.com/Huizerd/deap.git#egg=deap
 -e git+https://github.com/Huizerd/gym-quad.git#egg=gym_quad
 -e git+https://github.com/BasBuller/PySNN.git#egg=pysnn
