@@ -2,16 +2,16 @@ log location: logs/
 log interval: 20
 network: SNN
 double neurons: True
-double actions: True
-hidden size: 40
+double actions: False
+hidden size: 20
 evo:
   gens: 200
   pop size: 100
-  mutation rate: 0.3
+  mutation rate: 0.7
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
   types: []
   obj weights: [-1.0, -1.0, -1.0]
-  objectives: [time to land, final height, final velocity]  # second dim not plotted in relevant (so put least important here)
+  objectives: [time to land, final height, final velocity linear]  # second dim not plotted in relevant (so put least important here)
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [3, 6]
@@ -19,7 +19,7 @@ env:
   noise p: [0.1, 0.25]
   thrust bounds: [-0.8, 0.5]  # in G's
   thrust tc: [0.02, 0.1]
-  settle: 1.0
+  settle: 0.2
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
   dt: 0.02
@@ -43,4 +43,4 @@ snn:
   input offset: 1.0
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  decoding: sum trace
+  decoding: trace

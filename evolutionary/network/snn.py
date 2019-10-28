@@ -101,6 +101,7 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene == "weight"
                     and "incremental" not in types
+                    and "incremental2" not in types
                 ):
                     param = getattr(child, gene)
                     # Uniform in range [-w - 0.05, 2w + 0.05]
@@ -110,7 +111,10 @@ class SNN(SNNNetwork):
                     mask = torch.rand_like(param) < mutation_rate
                     param.masked_scatter_(mask, mutation)
                 elif (
-                    hasattr(child, gene) and gene == "weight" and "incremental" in types
+                    hasattr(child, gene)
+                    and gene == "weight"
+                    and "incremental" in types
+                    and "incremental2" not in types
                 ):
                     param = getattr(child, gene)
                     # Uniform increase/decrease from [-2, 2]
@@ -118,6 +122,18 @@ class SNN(SNNNetwork):
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(-2.0, 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene == "weight"
+                    and "incremental" not in types
+                    and "incremental2" in types
+                ):
+                    param = getattr(child, gene)
+                    # Uniform increase/decrease from [-2, 2]
+                    param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(-3.0, 3.0)
                 elif hasattr(child, gene) and gene in [
                     "alpha_v",
                     "alpha_t",
