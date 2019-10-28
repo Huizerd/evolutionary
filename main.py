@@ -38,7 +38,7 @@ def main(config, verbose):
         processes = multiprocessing.cpu_count() - 4
         cloud = True
     else:
-        processes = multiprocessing.cpu_count() // 4
+        processes = multiprocessing.cpu_count() - 2
         cloud = False
     pool = multiprocessing.Pool(processes=processes)
 
@@ -105,6 +105,7 @@ def main(config, verbose):
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )
+    toolbox.register("preselect", tools.selTournamentDCD)
     toolbox.register("select", tools.selNSGA2)
     toolbox.register("map", pool.map)
 
@@ -180,36 +181,12 @@ def main(config, verbose):
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
-        # Get Pareto front
-        # sortNondominated() returns a list of "fronts",
-        # of which the first is the actual Pareto front
-        pareto_fronts = tools.sortNondominated(population, len(population))
+        # Pre-selection through tournament based on dominance and crowding distance
+        selection = toolbox.preselect(population, len(population))
 
-        # Select Pareto-optimal individuals
-        selection = pareto_fronts[0]
-
-        # Group the others together in a single list
-        others = list(chain(*pareto_fronts[1:]))
-
-        # Tournament below needs others to be a multiple of 4,
-        # so extend with already selected individuals
-        if len(others) % 4:
-            # TODO: can get error because selection is very small (1), below number of extra needed for others
-            others.extend(random.sample(selection, 4 - (len(others) % 4)))
-
-        # Extend the selection based on a tournament played by the others
-        # DCD stands for dominance and crowding distance
-        # (which is used in case there is no strict dominance)
-        # Select k-out-of-k because we want as much offspring as possible,
-        # next generation will later be selected from population + offspring
-        selection.extend(tools.selTournamentDCD(others, len(others)))
-
-        # Get offspring: mutate selection,
-        # possibly cutting off those we added for the tournament
-        # This works, since everything is sorted from best to worst
-        offspring = [
-            toolbox.mutate(toolbox.clone(ind)) for ind in selection[: len(population)]
-        ]
+        # Get offspring: mutate selection
+        # TODO: maybe add crossover
+        offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection]
 
         # Re-evaluate last generation/population, because their conditions are random
         # and we want to test each individual against as many as possible
@@ -221,14 +198,6 @@ def main(config, verbose):
         fitnesses = toolbox.map(toolbox.evaluate, offspring)
         for ind, fit in zip(offspring, fitnesses):
             ind.fitness.values = fit
-
-        # TODO: remove below
-        equal = 0
-        for i, ind1 in enumerate(population + offspring):
-            for ind2 in (population + offspring)[i:]:
-                if ind1.fitness.values == ind2.fitness.values:
-                    equal += 1
-        print(f"No. of identical fitnesses: {equal}")
 
         # Update the hall of fame with the offspring,
         # so we get the best of population + offspring in there
@@ -389,12 +358,12 @@ if __name__ == "__main__":
                 "%H-%M-%S_%y-%m-%d"
             )
             comparison["log location"] += (
-                "comparison" + "_".join(args["tags"]) + "+" + timestamp + "/"
+                "comparison+" + "_".join(args["tags"]) + "+" + timestamp + "/"
             )
             os.makedirs(comparison["log location"])
 
             # Save comparison file and tags there
-            copyfile(args["compare"], comparison["log location"] + "comparison.yaml")
+            copyfile(args["comparison"], comparison["log location"] + "comparison.yaml")
             with open(comparison["log location"] + "tags.txt", "w") as f:
                 f.write(" ".join(args["tags"]))
 

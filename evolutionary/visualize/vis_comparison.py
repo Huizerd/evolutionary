@@ -72,7 +72,6 @@ def vis_comparison(configs, comparison, verbose=2):
             for gene in genes:
                 if gene in values[name]:
                     for layer, tens in values[name][gene].items():
-                        print(f"{gene}: {tens.min()}, {tens.max()}")
                         for layer2, child in network.named_children():
                             if layer == layer2 and hasattr(child, gene):
                                 values[name][gene][layer] = torch.cat(
@@ -111,7 +110,7 @@ def vis_comparison(configs, comparison, verbose=2):
 
             # Test performance
             for h in config["env"]["h0"]:
-                performance[name][id][h] = [[] for _ in range(3)]
+                performance[name][id][h] = [[] for _ in range(5)]
                 for i in range(len(performance[name][id][h])):
                     if isinstance(network, SNNNetwork):
                         network.reset_state()
@@ -161,8 +160,6 @@ def vis_comparison(configs, comparison, verbose=2):
 
     if verbose:
         fig_p.savefig(f"{comparison['log location']}performance.png")
-
-    # TODO: save fig
 
     # Then plot distributions of network parameters
     for gene in genes:
