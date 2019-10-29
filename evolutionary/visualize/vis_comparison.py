@@ -7,8 +7,7 @@ import numpy as np
 
 from pysnn.network import SNNNetwork
 
-from evolutionary.environment.environment import QuadEnv
-from evolutionary.utils.constructors import build_network
+from evolutionary.utils.constructors import build_network, build_environment
 
 
 def vis_comparison(configs, comparison, verbose=2):
@@ -41,24 +40,12 @@ def vis_comparison(configs, comparison, verbose=2):
         network = build_network(config)
 
         # Build environment
-        env = QuadEnv(
-            delay=config["env"]["delay"][0],
-            noise=config["env"]["noise"][0],
-            noise_p=config["env"]["noise p"][0],
-            thrust_bounds=config["env"]["thrust bounds"],
-            thrust_tc=config["env"]["thrust tc"][0],
-            settle=config["env"]["settle"],
-            wind=config["env"]["wind"],
-            h0=config["env"]["h0"][0],
-            dt=config["env"]["dt"],
-            max_t=config["env"]["max time"],
-            seed=None,
-        )
+        env = build_environment(config)
 
         # Add subdicts
         performance[name] = OrderedDict()
         values[name] = OrderedDict()
-        statics[name] = OrderedDict([("dt", config["env"]["dt"])])
+        statics[name] = OrderedDict([("dt", env.dt)])
 
         # Get all data/results
         for id, param in enumerate(parameters):

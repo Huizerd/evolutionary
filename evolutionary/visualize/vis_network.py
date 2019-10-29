@@ -5,6 +5,7 @@ import yaml
 import matplotlib.pyplot as plt
 
 from evolutionary.utils.constructors import build_network
+from evolutionary.visualize.colormap import parula_map
 
 
 def vis_network(config, parameters, verbose=2):
@@ -28,8 +29,9 @@ def vis_network(config, parameters, verbose=2):
             params["fixed"][param] = values
 
     # Print parameters to file
-    with open(config["log location"] + "net_param.yaml", "w") as f:
-        yaml.dump(params, f, default_flow_style=False)
+    if verbose:
+        with open(config["log location"] + "net_param.yaml", "w") as f:
+            yaml.dump(params, f, default_flow_style=False)
 
     # Go over all genes and create separate figures
     # Note that weights/delays belong to connections/layers, while others belong to neurons
@@ -54,14 +56,14 @@ def vis_network(config, parameters, verbose=2):
             # Colored value plots
             if gene == "weight":
                 im = axs[0, i].imshow(
-                    param.T.numpy(), cmap="plasma", vmin=param_min, vmax=param_max
+                    param.T.numpy(), cmap=parula_map, vmin=param_min, vmax=param_max
                 )
                 axs[0, i].set_xlabel("post neuron id")
                 axs[0, i].set_ylabel("pre neuron id")
             elif gene == "thresh" or gene == "bias":
                 im = axs[0, i].imshow(
                     param.view(1, -1).numpy(),
-                    cmap="plasma",
+                    cmap=parula_map,
                     vmin=param_min,
                     vmax=param_max,
                 )

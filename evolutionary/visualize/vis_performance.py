@@ -7,27 +7,12 @@ import matplotlib.pyplot as plt
 from pysnn.neuron import BaseNeuron
 from pysnn.network import SNNNetwork
 
-from evolutionary.environment.environment import QuadEnv
-from evolutionary.utils.constructors import build_network
+from evolutionary.utils.constructors import build_network, build_environment
 
 
 def vis_performance(config, parameters, verbose=2):
-    # Build environment, test for various starting altitudes
-    # Use regular base QuadHover (no need for modified reward here)
-    # Use most parameters from config (where a range was given, we take the lower bound)
-    env = QuadEnv(
-        delay=config["env"]["delay"][0],
-        noise=config["env"]["noise"][0],
-        noise_p=config["env"]["noise p"][0],
-        thrust_bounds=config["env"]["thrust bounds"],
-        thrust_tc=config["env"]["thrust tc"][0],
-        settle=config["env"]["settle"],
-        wind=config["env"]["wind"],
-        h0=config["env"]["h0"][0],
-        dt=config["env"]["dt"],
-        max_t=config["env"]["max time"],
-        seed=None,
-    )
+    # Build environment
+    env = build_environment(config)
 
     # Load network
     network = build_network(config)
@@ -162,22 +147,8 @@ def vis_performance(config, parameters, verbose=2):
 
 
 def vis_disturbance(config, parameters, verbose=2):
-    # Build environment, test for various starting altitudes
-    # Use regular base QuadHover (no need for modified reward here)
-    # Use most parameters from config (where a range was given, we take the lower bound)
-    env = QuadEnv(
-        delay=config["env"]["delay"][0],
-        noise=config["env"]["noise"][0],
-        noise_p=config["env"]["noise p"][0],
-        thrust_bounds=config["env"]["thrust bounds"],
-        thrust_tc=config["env"]["thrust tc"][0],
-        settle=config["env"]["settle"],
-        wind=config["env"]["wind"],
-        h0=config["env"]["h0"][1],
-        dt=config["env"]["dt"],
-        max_t=config["env"]["max time"],
-        seed=None,
-    )
+    # Build environment
+    env = build_environment(config)
 
     # Load network
     network = build_network(config)
@@ -194,6 +165,10 @@ def vis_disturbance(config, parameters, verbose=2):
         network.reset_state()
     obs = env.reset(h0=config["env"]["h0"][1])
     done = False
+
+    # Indicators whether disturbance already happened
+    dist_1 = False
+    dist_2 = False
 
     # For plotting
     state_list = []
@@ -238,14 +213,16 @@ def vis_disturbance(config, parameters, verbose=2):
         obs = torch.from_numpy(obs)
         action = network.forward(obs.view(1, 1, -1))
         action = action.numpy()
-        if env.steps == 100:
+        if env.t >= 1.5 and not dist_1:
             env.set_disturbance(200.0, 0.0)
             obs, _, done, _ = env.step(action)
             env.unset_disturbance()
-        elif env.steps == 200:
+            dist_1 = True
+        elif env.t >= 2.5 and not dist_2:
             env.set_disturbance(0.0, -2000.0)
             obs, _, done, _ = env.step(action)
             env.unset_disturbance()
+            dist_2 = True
         else:
             obs, _, done, _ = env.step(action)
 

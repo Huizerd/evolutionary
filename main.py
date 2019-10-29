@@ -2,10 +2,8 @@ import argparse
 import datetime, time
 import multiprocessing
 import os
-import random
 import shutil
 from functools import partial
-from itertools import chain
 from shutil import copyfile
 
 import torch
@@ -14,14 +12,14 @@ import numpy as np
 import pandas as pd
 from deap import base, creator, tools
 
-from evolutionary.environment.environment import QuadEnv
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
-from evolutionary.utils.constructors import build_network_partial
+from evolutionary.utils.constructors import build_network_partial, build_environment
 from evolutionary.visualize.vis_comparison import vis_comparison
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
+from evolutionary.visualize.vis_steadystate import vis_steadystate
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 
@@ -45,20 +43,8 @@ def main(config, verbose):
     # Build network
     network = build_network_partial(config)
 
-    # And init environment
-    env = QuadEnv(
-        delay=np.random.randint(*config["env"]["delay"]),
-        noise=np.random.uniform(*config["env"]["noise"]),
-        noise_p=np.random.uniform(*config["env"]["noise p"]),
-        thrust_bounds=config["env"]["thrust bounds"],
-        thrust_tc=np.random.uniform(*config["env"]["thrust tc"]),
-        settle=config["env"]["settle"],
-        wind=config["env"]["wind"],
-        h0=config["env"]["h0"][0],
-        dt=config["env"]["dt"],
-        max_t=config["env"]["max time"],
-        seed=np.random.randint(config["env"]["seeds"]),
-    )
+    # And environment
+    env = build_environment(config)
 
     # Objectives
     # All possible objectives: air time, time to land, final height, final offset,
@@ -66,6 +52,7 @@ def main(config, verbose):
     valid_objectives = [
         "air time",
         "time to land",
+        "time to land scaled",
         "final height",
         "final offset",
         "final offset 5m",
@@ -323,19 +310,25 @@ if __name__ == "__main__":
         assert len(args["parameters"]) == 1, "Provide a single network for testing!"
         args["parameters"] = args["parameters"][0]
 
-        # Set log location to the one supplied
-        individual_id = "_".join(
-            [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
-        )
-        config["log location"] = (
-            "/".join(args["config"].split("/")[:-1]) + "/test+" + individual_id + "/"
-        )
-        if os.path.exists(config["log location"]):
-            shutil.rmtree(config["log location"])
-        os.makedirs(config["log location"])
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Set log location to the one supplied
+            individual_id = "_".join(
+                [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
+            )
+            config["log location"] = (
+                "/".join(args["config"].split("/")[:-1])
+                + "/test+"
+                + individual_id
+                + "/"
+            )
+            if os.path.exists(config["log location"]):
+                shutil.rmtree(config["log location"])
+            os.makedirs(config["log location"])
         vis_network(config, args["parameters"], args["verbose"])
         vis_performance(config, args["parameters"], args["verbose"])
         vis_disturbance(config, args["parameters"], args["verbose"])
+        vis_steadystate(config, args["parameters"], args["verbose"])
     elif args["mode"] == "compare":
         # Load config files
         assert args["comparison"] is not None, "Comparison needs a yaml file"
