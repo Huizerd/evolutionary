@@ -1,11 +1,11 @@
-log location: logs/
+log location: logs/runs/
 log interval: 20
 network: SNN
 double neurons: True
 double actions: False
 hidden size: 20
 evo:
-  gens: 200
+  gens: 5
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]

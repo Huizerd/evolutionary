@@ -282,11 +282,12 @@ if __name__ == "__main__":
 
         # Don't create/save in case of debugging
         if args["verbose"]:
-            # Create folders based on time stamp
-            timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
-                "%H-%M-%S_%y-%m-%d"
-            )
-            config["log location"] += "_".join(args["tags"]) + "+" + timestamp + "/"
+            # Create folders, add suffix if necessary
+            config["log location"] += "+".join(args["tags"]) + "+"
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
             config["fig location"] = config["log location"] + "population_figs/"
             os.makedirs(config["log location"])
             os.makedirs(config["fig location"])
@@ -320,10 +321,12 @@ if __name__ == "__main__":
                 "/".join(args["config"].split("/")[:-1])
                 + "/test+"
                 + individual_id
-                + "/"
+                + "+"
             )
-            if os.path.exists(config["log location"]):
-                shutil.rmtree(config["log location"])
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
         vis_network(config, args["parameters"], args["verbose"])
         vis_performance(config, args["parameters"], args["verbose"])
@@ -346,13 +349,12 @@ if __name__ == "__main__":
 
         # Don't create/save in case of debugging
         if args["verbose"]:
-            # Create folders based on time stamp
-            timestamp = datetime.datetime.fromtimestamp(start_time).strftime(
-                "%H-%M-%S_%y-%m-%d"
-            )
-            comparison["log location"] += (
-                "comparison+" + "_".join(args["tags"]) + "+" + timestamp + "/"
-            )
+            # Create folders, add suffix if necessary
+            comparison["log location"] += "+".join(args["tags"]) + "+"
+            suffix = 0
+            while os.path.exists(comparison["log location"] + str(suffix) + "/"):
+                suffix += 1
+            comparison["log location"] += str(suffix) + "/"
             os.makedirs(comparison["log location"])
 
             # Save comparison file and tags there

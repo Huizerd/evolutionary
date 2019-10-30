@@ -1,4 +1,4 @@
-log location: logs/
+log location: logs/runs/
 log interval: 20
 network: SNN
 double neurons: True
