@@ -152,19 +152,23 @@ def main(config, verbose):
         )
 
         # Create folders for parameters
-        os.makedirs(f"{config['log location']}parameters_0/")
-        os.makedirs(f"{config['log location']}hof/")
+        os.makedirs(f"{config['log location']}hof_0/")
 
         # And log the initial performance
+        # Figures
         if not cloud:
             last_pop[0].savefig(f"{config['fig location']}population_0.png")
         if last_rel is not None:
             last_rel[0].savefig(f"{config['fig location']}relevant_0.png")
-        for i, ind in enumerate(population):
+        # Weights
+        for i, ind in enumerate(hof):
             torch.save(
-                ind[0].state_dict(),
-                f"{config['log location']}parameters_0/individual_{i}.net",
+                ind[0].state_dict(), f"{config['log location']}hof_0/individual_{i}.net"
             )
+        # Fitnesses
+        pd.DataFrame(
+            [ind.fitness.values for ind in hof], columns=config["evo"]["objectives"]
+        ).to_csv(f"{config['log location']}hof_0/fitnesses.txt", index=False, sep="\t")
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
@@ -227,8 +231,8 @@ def main(config, verbose):
             # Log every so many generations
             if not gen % config["log interval"] or gen == config["evo"]["gens"] - 1:
                 # Create directory
-                if not os.path.exists(f"{config['log location']}parameters_{gen}/"):
-                    os.makedirs(f"{config['log location']}parameters_{gen}/")
+                if not os.path.exists(f"{config['log location']}hof_{gen}/"):
+                    os.makedirs(f"{config['log location']}hof_{gen}/")
 
                 # Save population figure
                 if not cloud:
@@ -236,20 +240,26 @@ def main(config, verbose):
                 if last_rel is not None:
                     last_rel[0].savefig(f"{config['fig location']}relevant_{gen}.png")
 
-                # Save parameters of entire population and hall of fame
-                for i, ind in enumerate(population):
-                    torch.save(
-                        ind[0].state_dict(),
-                        f"{config['log location']}parameters_{gen}/individual_{i}.net",
-                    )
+                # Save parameters of hall of fame
                 for i, ind in enumerate(hof):
                     torch.save(
-                        ind[0].state_dict(), f"{config['log location']}hof/hof_{i}.net"
+                        ind[0].state_dict(),
+                        f"{config['log location']}hof_{gen}/individual_{i}.net",
                     )
+
+                # Save fitnesses
+                pd.DataFrame(
+                    [ind.fitness.values for ind in hof],
+                    columns=config["evo"]["objectives"],
+                ).to_csv(
+                    f"{config['log location']}hof_{gen}/fitnesses.txt",
+                    index=False,
+                    sep="\t",
+                )
 
                 # Save logbook
                 pd.DataFrame(logbook).to_csv(
-                    f"{config['log location']}logbook.txt", sep="\t", index=False
+                    f"{config['log location']}logbook.txt", index=False, sep="\t"
                 )
 
     pool.close()
