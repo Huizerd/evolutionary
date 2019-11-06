@@ -8,6 +8,7 @@ def randomize_env(env, config):
     env.noise_p_std = np.random.uniform(*config["env"]["noise p"])
     env.thrust_tc = np.random.uniform(*config["env"]["thrust tc"])
     env.dt = np.random.uniform(*config["env"]["dt"])
+    env.ds_act = np.random.randint(*config["env"]["ds act"])
     env.jitter_prob = np.random.uniform(*config["env"]["jitter"])
     env.seed(np.random.randint(config["env"]["seeds"]))
 

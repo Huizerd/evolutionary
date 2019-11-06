@@ -59,6 +59,7 @@ def build_environment(config):
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
         dt=config["env"]["dt"][0],
+        ds_act=config["env"]["ds act"][0],
         jitter=config["env"]["jitter"][0],
         max_t=config["env"]["max time"],
         seed=None,
