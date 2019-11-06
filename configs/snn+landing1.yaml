@@ -5,7 +5,7 @@ double neurons: True
 double actions: False
 hidden size: 20
 evo:
-  gens: 5
+  gens: 200
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]

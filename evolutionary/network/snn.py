@@ -170,8 +170,8 @@ class SNN(SNNNetwork):
             # Repeat to have: (div, divdot, div, divdot)
             self.input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
-            self.input[..., :2].clamp_(min=0.0)
-            self.input[..., 2:].clamp_(max=0.0)
+            self.input[..., : input.size(-1)].clamp_(min=0.0)
+            self.input[..., input.size(-1) :].clamp_(max=0.0)
             return self.input.abs()
         else:
             # Clamp divergence to bounds to prevent negative firing rate

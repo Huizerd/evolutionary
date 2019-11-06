@@ -90,7 +90,7 @@ def vis_performance(config, parameters, verbose=2):
         axs_p[1].plot(time_list, np.array(state_list)[:, 1], label="Velocity")
         axs_p[1].set_ylabel("velocity [m/s]")
         # Acceleration/thrust
-        axs_p[2].plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
+        axs_p[2].plot(time_list, np.array(state_list)[:, 2], label="Thrust")
         axs_p[2].set_ylabel("acceleration [m/s2]")
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
@@ -239,7 +239,7 @@ def vis_disturbance(config, parameters, verbose=2):
     axs_p[1].plot(time_list, np.array(state_list)[:, 1], label="Velocity")
     axs_p[1].set_ylabel("velocity [m/s]")
     # Acceleration/thrust
-    axs_p[2].plot(time_list, -np.array(state_list)[:, 2], label="Thrust")
+    axs_p[2].plot(time_list, np.array(state_list)[:, 2], label="Thrust")
     axs_p[2].set_ylabel("acceleration [m/s2]")
     # Divergence
     axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
