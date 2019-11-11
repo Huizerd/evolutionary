@@ -6,74 +6,89 @@ from pysnn.neuron import Input, AdaptiveLIFNeuron, LIFNeuron
 
 
 class SNN(SNNNetwork):
-    def __init__(self, inputs, hidden, outputs, config):
+    def __init__(self, config):
         super(SNN, self).__init__()
 
         # Get configuration parameters for connections and neurons
         # Trace parameters for input neurons don't matter, unused anyway
         n_in_dynamics = [
-            config["snn"]["dt"],
-            config["snn"]["alpha t"][0],
-            config["snn"]["tau t"][0],
+            config["net"]["dt"],
+            config["net"]["alpha t"][0],
+            config["net"]["tau t"][0],
         ]
         n_hid_dynamics = [
-            config["snn"]["thresh"][0],
-            config["snn"]["v rest"][0],
-            config["snn"]["alpha v"][0],
-            config["snn"]["alpha t"][0],
-            config["snn"]["dt"],
-            config["snn"]["refrac"][0],
-            config["snn"]["tau v"][0],
-            config["snn"]["tau t"][0],
-            config["snn"]["alpha thresh"][0],
-            config["snn"]["tau thresh"][0],
+            config["net"]["thresh"][0],
+            config["net"]["v rest"][0],
+            config["net"]["alpha v"][0],
+            config["net"]["alpha t"][0],
+            config["net"]["dt"],
+            config["net"]["refrac"][0],
+            config["net"]["tau v"][0],
+            config["net"]["tau t"][0],
+            config["net"]["alpha thresh"][0],
+            config["net"]["tau thresh"][0],
         ]
         n_out_dynamics = [
-            config["snn"]["thresh"][1],
-            config["snn"]["v rest"][1],
-            config["snn"]["alpha v"][1],
-            config["snn"]["alpha t"][1],
-            config["snn"]["dt"],
-            config["snn"]["refrac"][1],
-            config["snn"]["tau v"][1],
-            config["snn"]["tau t"][1],
-            config["snn"]["alpha thresh"][0],
-            config["snn"]["tau thresh"][0],
+            config["net"]["thresh"][1],
+            config["net"]["v rest"][1],
+            config["net"]["alpha v"][1],
+            config["net"]["alpha t"][1],
+            config["net"]["dt"],
+            config["net"]["refrac"][1],
+            config["net"]["tau v"][1],
+            config["net"]["tau t"][1],
+            config["net"]["alpha thresh"][0],
+            config["net"]["tau thresh"][0],
         ]
-        c_dynamics = [1, config["snn"]["dt"], config["snn"]["delay"]]
+        c_dynamics = [1, config["net"]["dt"], config["net"]["delay"]]
 
         # Encoding/decoding
-        self.double_neurons = config["double neurons"]
-        self.in_scale = config["snn"]["input scale"]
-        self.in_offset = config["snn"]["input offset"]
-        self.double_actions = config["double actions"]
-        self.out_scale = config["snn"]["output scale"]
-        self.out_offset = config["snn"]["output offset"]
-        self.output_bounds = [b * 9.81 for b in config["env"]["thrust bounds"]]
-        self.decoding = config["snn"]["decoding"]
-        if self.decoding == "potential":
-            n_out_dynamics[0] = float("inf")
+        self.encoding = config["net"]["encoding"]
+        self.decoding = config["net"]["decoding"]
+        self.out_scale = config["net"]["output scale"]
+        self.out_offset = config["net"]["output offset"]
+        self.output_bounds = config["env"]["g bounds"]
+
+        # Input/output layer size (related to encoding/decoding)
+        if self.encoding == "both":
+            inputs = 4
+        elif self.encoding == "divergence":
+            inputs = 2
+        else:
+            raise ValueError("Invalid encoding")
+        if self.decoding == "single trace":
+            outputs = 1
+        elif self.decoding in ["max trace", "sum trace"]:
+            outputs = 2
+        elif self.decoding == "weighted trace":
+            outputs = 5
+        else:
+            raise ValueError("Invalid decoding")
 
         # Neurons
         self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
 
-        if config["snn"]["neuron"][0] == "regular":
-            self.neuron1 = LIFNeuron((1, 1, hidden), *n_hid_dynamics[:-2])
-        elif config["snn"]["neuron"][0] == "adaptive":
-            self.neuron1 = AdaptiveLIFNeuron((1, 1, hidden), *n_hid_dynamics)
+        if config["net"]["neuron"][0] == "regular":
+            self.neuron1 = LIFNeuron(
+                (1, 1, config["net"]["hidden size"]), *n_hid_dynamics[:-2]
+            )
+        elif config["net"]["neuron"][0] == "adaptive":
+            self.neuron1 = AdaptiveLIFNeuron(
+                (1, 1, config["net"]["hidden size"]), *n_hid_dynamics
+            )
         else:
             raise ValueError("Invalid neuron type for hidden layer")
 
-        if config["snn"]["neuron"][1] == "regular":
+        if config["net"]["neuron"][1] == "regular":
             self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics[:-2])
-        elif config["snn"]["neuron"][1] == "adaptive":
+        elif config["net"]["neuron"][1] == "adaptive":
             self.neuron2 = AdaptiveLIFNeuron((1, 1, outputs), *n_out_dynamics)
         else:
             raise ValueError("Invalid neuron type for output layer")
 
         # Connections
-        self.fc1 = Linear(inputs, hidden, *c_dynamics)
-        self.fc2 = Linear(hidden, outputs, *c_dynamics)
+        self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
+        self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
 
     def forward(self, x):
         # Input layer: encoding
@@ -89,9 +104,9 @@ class SNN(SNNNetwork):
 
         # Output layer
         x, _ = self.fc2(spikes, trace)
-        spikes, trace = self.neuron2(x)
+        _, trace = self.neuron2(x)
 
-        return self._decode(spikes, trace, self.neuron2.v_cell)
+        return self._decode(trace)
 
     def mutate(self, genes, types, mutation_rate=1.0):
         # Go over all genes that have to be mutated
@@ -101,7 +116,6 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene == "weight"
                     and "incremental" not in types
-                    and "incremental2" not in types
                 ):
                     param = getattr(child, gene)
                     # Uniform in range [-w - 0.05, 2w + 0.05]
@@ -111,25 +125,10 @@ class SNN(SNNNetwork):
                     mask = torch.rand_like(param) < mutation_rate
                     param.masked_scatter_(mask, mutation)
                 elif (
-                    hasattr(child, gene)
-                    and gene == "weight"
-                    and "incremental" in types
-                    and "incremental2" not in types
+                    hasattr(child, gene) and gene == "weight" and "incremental" in types
                 ):
                     param = getattr(child, gene)
-                    # Uniform increase/decrease from [-2, 2]
-                    param += (torch.empty_like(param).uniform_(-2.0, 2.0)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(-2.0, 2.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene == "weight"
-                    and "incremental" not in types
-                    and "incremental2" in types
-                ):
-                    param = getattr(child, gene)
-                    # Uniform increase/decrease from [-2, 2]
+                    # Uniform increase/decrease from [-1, 1]
                     param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
@@ -162,70 +161,50 @@ class SNN(SNNNetwork):
                     ).float()
                     param.clamp_(0.0, 1.0)
 
-    def _scale_input(self, input):
-        return input / self.in_scale + self.in_offset
-
     def _encode(self, input):
-        if self.double_neurons:
+        if self.encoding == "both":
             # Repeat to have: (div, divdot, div, divdot)
             self.input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
-            self.input[..., : input.size(-1)].clamp_(min=0.0)
-            self.input[..., input.size(-1) :].clamp_(max=0.0)
+            self.input[..., :2].clamp_(min=0.0)
+            self.input[..., 2:].clamp_(max=0.0)
             return self.input.abs()
-        else:
-            # Clamp divergence to bounds to prevent negative firing rate
-            input.clamp_(-self.in_scale, self.in_scale)
-            self.input = self._scale_input(input)
-            return self.input
+        elif self.encoding == "divergence":
+            # Repeat to have: (div, div)
+            self.input = input[..., 0].repeat(1, 1, 2)
+            # Clamp first half to positive, second half to negative
+            self.input[..., :1].clamp_(min=0.0)
+            self.input[..., 1:].clamp_(max=0.0)
+            return self.input.abs()
 
     def _scale_output(self, output):
         return self.output_bounds[0] + (
             self.output_bounds[1] - self.output_bounds[0]
         ) * (output / self.out_scale + self.out_offset)
 
-    def _decode(self, out_spikes, out_trace, out_volt):
-        # What to use as decoding? Time to first spike, PSP, trace? We have trace anyway
-        # Or do multiple options and let evolution decide?
-        # Return 1d tensor!
-        if self.double_actions:
-            if self.decoding == "max trace":
-                trace = out_trace.view(-1)
-                output = trace * torch.tensor(self.output_bounds)
-                return output[trace.argmax()].view(-1)
-            elif self.decoding == "sum trace":
-                trace = out_trace.view(-1)
-                output = (trace - trace.flip(0)).abs() * torch.tensor(
-                    self.output_bounds
-                )
-                return output[trace.argmax()].view(-1)
-            elif self.decoding == "weighted trace":
-                trace = out_trace.view(-1)
-                if trace.sum() > 0.0:
-                    output = (
-                        trace * torch.tensor([-0.8, -0.4, 0.0, 0.4, 0.8])
-                    ).sum() / trace.sum()
-                    return output.view(-1) * 9.81
-                else:
-                    return torch.tensor([0.0])
-            elif self.decoding == "weighted trace inhibited":
-                raise NotImplementedError("Inhibition variant not yet implemented")
-            elif self.decoding == "potential":
-                volt = out_volt.view(-1)
-                output = (volt - volt.flip(0)).abs() * torch.tensor(self.output_bounds)
-                return output[volt.argmax()].view(-1)
+    def _decode(self, out_trace):
+        # Scale single trace
+        if self.decoding == "single trace":
+            trace = out_trace.view(-1)
+            return self._scale_output(trace)
+        # Maximum of two traces
+        elif self.decoding == "max trace":
+            trace = out_trace.view(-1)
+            output = trace * torch.tensor(self.output_bounds)
+            return output[trace.argmax()].view(-1)
+        # Sum of two traces (one for positive, one for negative)
+        elif self.decoding == "sum trace":
+            trace = out_trace.view(-1)
+            output = (trace - trace.flip(0)).abs() * torch.tensor(self.output_bounds)
+            return output[trace.argmax()].view(-1)
+        # Weighted average of five traces
+        elif self.decoding == "weighted trace":
+            trace = out_trace.view(-1)
+            if trace.sum() > 0.0:
+                output = (
+                    trace
+                    * torch.linspace(self.output_bounds[0], -self.output_bounds[0], 5)
+                ).sum() / trace.sum()
+                return output.view(-1)
             else:
-                raise KeyError("Not a valid method key!")
-        else:
-            if self.decoding == "trace":
-                trace = out_trace.view(-1)
-                return self._scale_output(trace)
-            elif self.decoding == "potential":
-                volt = out_volt.view(-1)
-                output = volt.abs() * torch.tensor(self.output_bounds)
-                if volt > 0:
-                    return output[1].view(-1)
-                else:
-                    return output[0].view(-1)
-            else:
-                raise KeyError("Not a valid method key!")
+                return torch.tensor([0.0])

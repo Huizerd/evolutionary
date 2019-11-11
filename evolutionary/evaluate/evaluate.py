@@ -6,13 +6,12 @@ from evolutionary.utils.utils import randomize_env
 
 
 def evaluate(valid_objectives, config, env, h0, individual):
-    # Randomize environment
-    env = randomize_env(env, config)
-
     # Keep track of all possible objectives
     objectives = {obj: 0.0 for obj in valid_objectives}
 
     for h in h0:
+        # Randomize environment for each altitude to get better generalization
+        env = randomize_env(env, config)
         # Reset network and env
         if isinstance(individual[0], SNNNetwork):
             individual[0].reset_state()
@@ -36,20 +35,19 @@ def evaluate(valid_objectives, config, env, h0, individual):
         else:
             objectives["air time"] += env.t
 
-        # Time to land and final velocity (following Kirk's conventions)
+        # Time to land and final velocity
         if env.t >= env.max_t or env.state[0] >= env.MAX_H:
-            objectives["time to land"] += env.max_t
-            objectives["time to land scaled"] += env.max_t
-            objectives["final velocity"] += 4.0
-            objectives["final velocity linear"] += 4.0
+            objectives["time to land"] += 100.0
+            objectives["final velocity"] += 10.0
+            objectives["final velocity squared"] += 10.0
+            objectives["final height"] += 10.0
         else:
             objectives["time to land"] += env.t - config["env"]["settle"]
-            objectives["time to land scaled"] += (env.t - config["env"]["settle"]) / h
-            objectives["final velocity"] += env.state[1] * env.state[1]
-            objectives["final velocity linear"] += abs(env.state[1])
+            objectives["final velocity"] += abs(env.state[1])
+            objectives["final velocity squared"] += env.state[1] * env.state[1]
+            objectives["final height"] += env.state[0]
 
         # Final height and final offset
-        objectives["final height"] += env.state[0]
         objectives["final offset"] += abs(h - env.state[0])
         objectives["final offset 5m"] += abs(5.0 - env.state[0])
 

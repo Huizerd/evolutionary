@@ -8,6 +8,7 @@ import numpy as np
 from pysnn.network import SNNNetwork
 
 from evolutionary.utils.constructors import build_network, build_environment
+from evolutionary.utils.utils import randomize_env
 
 
 def vis_comparison(configs, comparison, verbose=2):
@@ -45,7 +46,7 @@ def vis_comparison(configs, comparison, verbose=2):
         # Add subdicts
         performance[name] = OrderedDict()
         values[name] = OrderedDict()
-        statics[name] = OrderedDict([("dt", env.dt)])
+        statics[name] = OrderedDict()
 
         # Get all data/results
         for id, param in enumerate(parameters):
@@ -97,16 +98,18 @@ def vis_comparison(configs, comparison, verbose=2):
 
             # Test performance
             for h in config["env"]["h0"]:
-                performance[name][id][h] = [[] for _ in range(5)]
+                performance[name][id][h] = [[0.0, []] for _ in range(5)]
                 for i in range(len(performance[name][id][h])):
                     if isinstance(network, SNNNetwork):
                         network.reset_state()
+                    env = randomize_env(env, config)
+                    performance[name][id][h][i][0] = env.dt
                     obs = env.reset(h0=h)
                     done = False
 
                     while not done:
                         # Log performance
-                        performance[name][id][h][i].append(env.state.copy())
+                        performance[name][id][h][i][1].append(env.state.copy())
 
                         # Step the environment
                         obs = torch.from_numpy(obs)
@@ -115,7 +118,9 @@ def vis_comparison(configs, comparison, verbose=2):
                         obs, _, done, _ = env.step(action)
 
                     # Convert to numpy array
-                    performance[name][id][h][i] = np.array(performance[name][id][h][i])
+                    performance[name][id][h][i][1] = np.array(
+                        performance[name][id][h][i][1]
+                    )
 
     # First plot performance
     colors = ["xkcd:neon red", "xkcd:neon blue", "xkcd:neon green", "xkcd:neon purple"]
@@ -133,11 +138,9 @@ def vis_comparison(configs, comparison, verbose=2):
                         label = name if id == 0 and l == 0 else ""
                         axs_p[m, k].plot(
                             np.linspace(
-                                0.0,
-                                (run.shape[0] - 1) * statics[name]["dt"],
-                                run.shape[0],
+                                0.0, (run[1].shape[0] - 1) * run[0], run[1].shape[0]
                             ),
-                            run[:, m],
+                            run[1][:, m],
                             color=colors[i],
                             label=label,
                         )

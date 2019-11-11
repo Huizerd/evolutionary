@@ -1,12 +1,8 @@
 log location: logs/runs/
 log interval: 20
-network: SNN
-double neurons: True
-double actions: False
-hidden size: 20
 evo:
   gens: 200
-  pop size: 100
+  pop size: 20
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
   types: []
@@ -17,7 +13,8 @@ env:
   delay: [3, 6]
   noise: [0.1, 0.15]
   noise p: [0.1, 0.25]
-  thrust bounds: [-0.8, 0.5]  # in G's
+  g: 9.81
+  g bounds: [-0.8, 0.5]
   thrust tc: [0.02, 0.1]
   settle: 0.5
   wind: 0.1
@@ -27,8 +24,10 @@ env:
   jitter: [0.0, 0.2]
   max time: 30.0
   seeds: 100
-snn:
+net:
   # Lists allow separate parameters for each spiking layer
+  network: SNN
+  hidden size: 20
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]
@@ -41,8 +40,7 @@ snn:
   refrac: [0, 0]
   dt: 1
   delay: 0
-  input scale: 0.1
-  input offset: 1.0
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  decoding: trace
+  encoding: both
+  decoding: single trace

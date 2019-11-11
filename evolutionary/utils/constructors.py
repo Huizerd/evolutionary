@@ -7,40 +7,24 @@ from evolutionary.environment.environment import QuadEnv
 
 def build_network(config):
     # Select architecture
-    if config["network"] == "ANN":
-        network = ANN(2, config["hidden size"], 1)
-    elif config["network"] == "SNN":
-        if config["double neurons"]:
-            inputs = 4
-        else:
-            inputs = 2
-        if config["double actions"]:
-            outputs = 2 if config["snn"]["decoding"] != "weighted trace" else 5
-        else:
-            outputs = 1
-        network = SNN(inputs, config["hidden size"], outputs, config)
+    if config["net"]["network"] == "ANN":
+        network = ANN(config)
+    elif config["net"]["network"] == "SNN":
+        network = SNN(config)
     else:
-        raise KeyError("Not a valid network key!")
+        raise ValueError("Not a valid network")
 
     return network
 
 
 def build_network_partial(config):
     # Select architecture
-    if config["network"] == "ANN":
-        network = partial(ANN, 2, config["hidden size"], 1)
-    elif config["network"] == "SNN":
-        if config["double neurons"]:
-            inputs = 4
-        else:
-            inputs = 2
-        if config["double actions"]:
-            outputs = 2 if config["snn"]["decoding"] != "weighted trace" else 5
-        else:
-            outputs = 1
-        network = partial(SNN, inputs, config["hidden size"], outputs, config)
+    if config["net"]["network"] == "ANN":
+        network = partial(ANN, config)
+    elif config["net"]["network"] == "SNN":
+        network = partial(SNN, config)
     else:
-        raise KeyError("Not a valid network key!")
+        raise ValueError("Not a valid network")
 
     return network
 
@@ -53,7 +37,8 @@ def build_environment(config):
         delay=config["env"]["delay"][0],
         noise=config["env"]["noise"][0],
         noise_p=config["env"]["noise p"][0],
-        thrust_bounds=config["env"]["thrust bounds"],
+        g=config["env"]["g"],
+        g_bounds=config["env"]["g bounds"],
         thrust_tc=config["env"]["thrust tc"][0],
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],

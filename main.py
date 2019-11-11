@@ -1,9 +1,10 @@
 import argparse
-import datetime, time
+import time
 import multiprocessing
 import os
-import shutil
+import random
 from functools import partial
+from itertools import chain
 from shutil import copyfile
 
 import torch
@@ -52,12 +53,11 @@ def main(config, verbose):
     valid_objectives = [
         "air time",
         "time to land",
-        "time to land scaled",
         "final height",
         "final offset",
         "final offset 5m",
         "final velocity",
-        "final velocity linear",
+        "final velocity squared",
         "unsigned divergence",
         "signed divergence",
         "dummy",
@@ -113,7 +113,7 @@ def main(config, verbose):
     hof = tools.ParetoFront()  # hall of fame!
 
     # Evaluate population
-    fitnesses = toolbox.map(toolbox.evaluate, population)
+    fitnesses, envs = toolbox.map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
 
@@ -160,7 +160,7 @@ def main(config, verbose):
             last_pop[0].savefig(f"{config['fig location']}population_0.png")
         if last_rel is not None:
             last_rel[0].savefig(f"{config['fig location']}relevant_0.png")
-        # Weights
+        # Parameters
         for i, ind in enumerate(hof):
             torch.save(
                 ind[0].state_dict(), f"{config['log location']}hof_0/individual_{i}.net"
@@ -174,10 +174,17 @@ def main(config, verbose):
     for gen in range(1, config["evo"]["gens"]):
         # Pre-selection through tournament based on dominance and crowding distance
         selection = toolbox.preselect(population, len(population))
+        # pareto_fronts = tools.sortNondominated(population, len(population))
+        # selection = pareto_fronts[0]
+        # others = list(chain(*pareto_fronts[1:]))
+        # if len(others) % 4:
+        #     others.extend(random.sample(selection, 4 - (len(others) % 4)))
+        # selection.extend(tools.selTournamentDCD(others, len(others)))
 
         # Get offspring: mutate selection
         # TODO: maybe add crossover
         offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection]
+        # offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection[:len(population)]]
 
         # Re-evaluate last generation/population, because their conditions are random
         # and we want to test each individual against as many as possible
@@ -240,7 +247,7 @@ def main(config, verbose):
                 if last_rel is not None:
                     last_rel[0].savefig(f"{config['fig location']}relevant_{gen}.png")
 
-                # Save parameters of hall of fame
+                # Save parameters of hall of fame individuals
                 for i, ind in enumerate(hof):
                     torch.save(
                         ind[0].state_dict(),
@@ -317,7 +324,7 @@ if __name__ == "__main__":
         with open(args["config"], "r") as cf:
             config = yaml.full_load(cf)
 
-        # Check if single set of parameters were supplied
+        # Check if single set of parameters was supplied
         assert len(args["parameters"]) == 1, "Provide a single network for testing!"
         args["parameters"] = args["parameters"][0]
 

@@ -8,6 +8,7 @@ from pysnn.neuron import BaseNeuron
 from pysnn.network import SNNNetwork
 
 from evolutionary.utils.constructors import build_network, build_environment
+from evolutionary.utils.utils import randomize_env
 
 
 def vis_performance(config, parameters, verbose=2):
@@ -18,14 +19,10 @@ def vis_performance(config, parameters, verbose=2):
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
 
-    # Determine encoding
-    if isinstance(network, SNNNetwork):
-        double = config["double neurons"]
-    else:
-        double = False
-
     # Go over all heights we trained for
     for h in config["env"]["h0"]:
+        # Randomize env for each altitude
+        env = randomize_env(env, config)
         # Reset network and env
         if isinstance(network, SNNNetwork):
             network.reset_state()
@@ -95,28 +92,25 @@ def vis_performance(config, parameters, verbose=2):
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
         axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-        if double:
+        if isinstance(network, SNNNetwork) and network.encoding == "both":
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
-        elif encoding_list and not double:
-            axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded D")
-        axs_p[3].set_ylabel("divergence")
+        elif isinstance(network, SNNNetwork) and network.encoding == "divergence":
+            axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
+            axs_p[3].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded -D")
+        axs_p[3].set_ylabel("divergence [1/s]")
         # Divergence dot
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-        if double:
+        if isinstance(network, SNNNetwork) and network.encoding == "both":
             axs_p[4].plot(
                 time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot"
             )
             axs_p[4].plot(
                 time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot"
             )
-        elif encoding_list and not double:
-            axs_p[4].plot(
-                time_list, np.array(encoding_list)[:, 1], label="Encoded Ddot"
-            )
-        axs_p[4].set_ylabel("divergence dot")
-        axs_p[4].set_xlabel("Time")
+        axs_p[4].set_ylabel("divergence dot [1/s2]")
+        axs_p[4].set_xlabel("time [s]")
 
         for ax in axs_p:
             ax.grid()
@@ -128,8 +122,10 @@ def vis_performance(config, parameters, verbose=2):
 
         # Plot neurons
         if isinstance(network, SNNNetwork):
-            dpi = 50 if config["hidden size"] > 10 else 100
-            fig, ax = plt.subplots(config["hidden size"], 2, figsize=(20, 20), dpi=dpi)
+            dpi = 50 if config["net"]["hidden size"] > 10 else 100
+            fig, ax = plt.subplots(
+                config["net"]["hidden size"], 2, figsize=(20, 20), dpi=dpi
+            )
             for i, (name, recordings) in enumerate(neuron_dict.items()):
                 for var, vals in recordings.items():
                     if len(vals):
@@ -149,16 +145,11 @@ def vis_performance(config, parameters, verbose=2):
 def vis_disturbance(config, parameters, verbose=2):
     # Build environment
     env = build_environment(config)
+    env = randomize_env(env, config)
 
     # Load network
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
-
-    # Determine encoding
-    if isinstance(network, SNNNetwork):
-        double = config["double neurons"]
-    else:
-        double = False
 
     # Reset network and env
     if isinstance(network, SNNNetwork):
@@ -244,22 +235,21 @@ def vis_disturbance(config, parameters, verbose=2):
     # Divergence
     axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], label="GT divergence")
     axs_p[3].plot(time_list, np.array(obs_list)[:, 0], label="Divergence")
-    if double:
+    if isinstance(network, SNNNetwork) and network.encoding == "both":
         axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
         axs_p[3].plot(time_list, np.array(encoding_list)[:, 2], label="Encoded -D")
-    elif encoding_list and not double:
-        axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded D")
-    axs_p[3].set_ylabel("divergence")
+    elif isinstance(network, SNNNetwork) and network.encoding == "divergence":
+        axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
+        axs_p[3].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded -D")
+    axs_p[3].set_ylabel("divergence [1/s]")
     # Divergence dot
     axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")
     axs_p[4].plot(time_list, np.array(obs_list)[:, 1], label="Div dot")
-    if double:
+    if isinstance(network, SNNNetwork) and network.encoding == "both":
         axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded +Ddot")
         axs_p[4].plot(time_list, np.array(encoding_list)[:, 3], label="Encoded -Ddot")
-    elif encoding_list and not double:
-        axs_p[4].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded Ddot")
-    axs_p[4].set_ylabel("divergence dot")
-    axs_p[4].set_xlabel("Time")
+    axs_p[4].set_ylabel("divergence dot [1/s2]")
+    axs_p[4].set_xlabel("time [s]")
 
     for ax in axs_p:
         ax.grid()
@@ -271,8 +261,10 @@ def vis_disturbance(config, parameters, verbose=2):
 
     # Plot neurons
     if isinstance(network, SNNNetwork):
-        dpi = 50 if config["hidden size"] > 10 else 100
-        fig, ax = plt.subplots(config["hidden size"], 2, figsize=(20, 20), dpi=dpi)
+        dpi = 50 if config["net"]["hidden size"] > 10 else 100
+        fig, ax = plt.subplots(
+            config["net"]["hidden size"], 2, figsize=(20, 20), dpi=dpi
+        )
         for i, (name, recordings) in enumerate(neuron_dict.items()):
             for var, vals in recordings.items():
                 if len(vals):

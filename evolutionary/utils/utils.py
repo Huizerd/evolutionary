@@ -16,3 +16,28 @@ def randomize_env(env, config):
     env.checks()
 
     return env
+
+
+def getset_env(env, config=None):
+    # Set if we have a config, else return current config
+    if config is not None:
+        env.delay = config["delay"]
+        env.noise_std = config["noise"]
+        env.noise_p_std = config["noise p"]
+        env.thrust_tc = config["thrust tc"]
+        env.dt = config["dt"]
+        env.ds_act = config["ds act"]
+        env.jitter_prob = config["jitter"]
+        env.seed(config["seeds"])
+        return env
+    else:
+        config = {}
+        config["delay"] = env.delay
+        config["noise"] = env.noise_std
+        config["noise p"] = env.noise_p_std
+        config["thrust tc"] = env.thrust_tc
+        config["dt"] = env.dt
+        config["ds act"] = env.ds_act
+        config["jitter"] = env.jitter_prob
+        config["seeds"] = env.seeds
+        return config
