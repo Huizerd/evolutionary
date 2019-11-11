@@ -92,7 +92,6 @@ def main(config, verbose):
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )
-    toolbox.register("preselect", tools.selTournamentDCD)
     toolbox.register("select", tools.selNSGA2)
     toolbox.register("map", pool.map)
 
@@ -113,13 +112,12 @@ def main(config, verbose):
     hof = tools.ParetoFront()  # hall of fame!
 
     # Evaluate population
-    fitnesses, envs = toolbox.map(toolbox.evaluate, population)
+    fitnesses = toolbox.map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
 
     # This is just to assign the crowding distance to the individuals,
     # no actual selection is done
-    # "Crowding distance" appears to be something related to NSGA-II (which is select())
     population = toolbox.select(population, len(population))
 
     # Log first record
@@ -172,19 +170,19 @@ def main(config, verbose):
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
-        # Pre-selection through tournament based on dominance and crowding distance
-        selection = toolbox.preselect(population, len(population))
-        # pareto_fronts = tools.sortNondominated(population, len(population))
-        # selection = pareto_fronts[0]
-        # others = list(chain(*pareto_fronts[1:]))
-        # if len(others) % 4:
-        #     others.extend(random.sample(selection, 4 - (len(others) % 4)))
-        # selection.extend(tools.selTournamentDCD(others, len(others)))
+        # Offspring: Pareto front + best of the rest
+        pareto_fronts = tools.sortNondominated(population, len(population))
+        selection = pareto_fronts[0]
+        others = list(chain(*pareto_fronts[1:]))
+        if len(others) % 4:
+            others.extend(random.sample(selection, 4 - (len(others) % 4)))
+        selection.extend(tools.selTournamentDCD(others, len(others)))
 
         # Get offspring: mutate selection
         # TODO: maybe add crossover
-        offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection]
-        # offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection[:len(population)]]
+        offspring = [
+            toolbox.mutate(toolbox.clone(ind)) for ind in selection[: len(population)]
+        ]
 
         # Re-evaluate last generation/population, because their conditions are random
         # and we want to test each individual against as many as possible

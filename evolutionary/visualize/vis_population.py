@@ -14,9 +14,9 @@ def vis_relevant(population, hof, obj_labels, runs, last=None, verbose=2):
             obj_limits.append(1.0)
         elif obj == "time to land":
             obj_limits.append(10.0)
+        elif obj == "final velocity squared":
+            obj_limits.append(4.0)
         elif obj == "final velocity":
-            obj_limits.append(3.0)
-        elif obj == "final velocity linear":
             obj_limits.append(2.0)
         else:
             obj_limits.append(np.inf)
