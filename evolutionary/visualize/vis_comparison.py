@@ -37,11 +37,14 @@ def vis_comparison(configs, comparison, verbose=2):
         # Expand to multiple files if needed
         parameters = glob.glob(parameters)
 
+        # Build environment
+        # TODO: randomize here or for each individual?
+        #  Because we want to compare properly (so same settings) but we also want them
+        #  to generalize well
+        env = build_environment(config)
+
         # Build network
         network = build_network(config)
-
-        # Build environment
-        env = build_environment(config)
 
         # Add subdicts
         performance[name] = OrderedDict()

@@ -21,6 +21,7 @@ from evolutionary.visualize.vis_comparison import vis_comparison
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
+from evolutionary.visualize.vis_sensitivity import vis_sensitivity
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 
@@ -135,38 +136,33 @@ def main(config, verbose):
         # Doesn't work in the cloud for some reason
         if not cloud:
             last_pop = vis_population(
-                population,
-                hof,
-                config["evo"]["objectives"],
-                len(config["env"]["h0"]),
-                verbose=verbose,
+                population, hof, config["evo"]["objectives"], verbose=verbose
             )
         last_rel = vis_relevant(
-            population,
-            hof,
-            config["evo"]["objectives"],
-            len(config["env"]["h0"]),
-            verbose=verbose,
+            population, hof, config["evo"]["objectives"], verbose=verbose
         )
 
         # Create folders for parameters
-        os.makedirs(f"{config['log location']}hof_0/")
+        os.makedirs(f"{config['log location']}hof_000/")
 
         # And log the initial performance
         # Figures
         if not cloud:
-            last_pop[0].savefig(f"{config['fig location']}population_0.png")
+            last_pop[0].savefig(f"{config['fig location']}population_000.png")
         if last_rel is not None:
-            last_rel[0].savefig(f"{config['fig location']}relevant_0.png")
+            last_rel[0].savefig(f"{config['fig location']}relevant_000.png")
         # Parameters
         for i, ind in enumerate(hof):
             torch.save(
-                ind[0].state_dict(), f"{config['log location']}hof_0/individual_{i}.net"
+                ind[0].state_dict(),
+                f"{config['log location']}hof_000/individual_{i:03}.net",
             )
         # Fitnesses
         pd.DataFrame(
             [ind.fitness.values for ind in hof], columns=config["evo"]["objectives"]
-        ).to_csv(f"{config['log location']}hof_0/fitnesses.txt", index=False, sep="\t")
+        ).to_csv(
+            f"{config['log location']}hof_000/fitnesses.txt", index=False, sep="\t"
+        )
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
@@ -220,7 +216,6 @@ def main(config, verbose):
                     population,
                     hof,
                     config["evo"]["objectives"],
-                    len(config["env"]["h0"]),
                     last=last_pop,
                     verbose=verbose,
                 )
@@ -228,7 +223,6 @@ def main(config, verbose):
                 population,
                 hof,
                 config["evo"]["objectives"],
-                len(config["env"]["h0"]),
                 last=last_rel,
                 verbose=verbose,
             )
@@ -236,20 +230,24 @@ def main(config, verbose):
             # Log every so many generations
             if not gen % config["log interval"] or gen == config["evo"]["gens"] - 1:
                 # Create directory
-                if not os.path.exists(f"{config['log location']}hof_{gen}/"):
-                    os.makedirs(f"{config['log location']}hof_{gen}/")
+                if not os.path.exists(f"{config['log location']}hof_{gen:03}/"):
+                    os.makedirs(f"{config['log location']}hof_{gen:03}/")
 
                 # Save population figure
                 if not cloud:
-                    last_pop[0].savefig(f"{config['fig location']}population_{gen}.png")
+                    last_pop[0].savefig(
+                        f"{config['fig location']}population_{gen:03}.png"
+                    )
                 if last_rel is not None:
-                    last_rel[0].savefig(f"{config['fig location']}relevant_{gen}.png")
+                    last_rel[0].savefig(
+                        f"{config['fig location']}relevant_{gen:03}.png"
+                    )
 
                 # Save parameters of hall of fame individuals
                 for i, ind in enumerate(hof):
                     torch.save(
                         ind[0].state_dict(),
-                        f"{config['log location']}hof_{gen}/individual_{i}.net",
+                        f"{config['log location']}hof_{gen:03}/individual_{i:03}.net",
                     )
 
                 # Save fitnesses
@@ -257,7 +255,7 @@ def main(config, verbose):
                     [ind.fitness.values for ind in hof],
                     columns=config["evo"]["objectives"],
                 ).to_csv(
-                    f"{config['log location']}hof_{gen}/fitnesses.txt",
+                    f"{config['log location']}hof_{gen:03}/fitnesses.txt",
                     index=False,
                     sep="\t",
                 )
@@ -273,17 +271,20 @@ def main(config, verbose):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["train", "test", "compare"], default="train")
+    parser.add_argument(
+        "--mode", choices=["train", "test", "compare", "analyze"], default="train"
+    )
     parser.add_argument(
         "--verbose", type=int, choices=[0, 1, 2, 3], default=2
     )  # 3 for saving values, not yet implemented
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
-    parser.add_argument("--parameters", nargs="+", default=None)
+    parser.add_argument("--parameters", type=str, default=None)
     parser.add_argument("--comparison", type=str, default=None)
     args = vars(parser.parse_args())
 
     # Modes of execution
+    # Training
     if args["mode"] == "train":
         # Read config file
         assert args["config"] is not None, "Training needs a single configuration file"
@@ -316,6 +317,8 @@ if __name__ == "__main__":
         main(config, args["verbose"])
 
         print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
+
+    # Testing
     elif args["mode"] == "test":
         # Read config file
         assert args["config"] is not None, "Testing needs a single configuration file"
@@ -347,6 +350,8 @@ if __name__ == "__main__":
         vis_performance(config, args["parameters"], args["verbose"])
         vis_disturbance(config, args["parameters"], args["verbose"])
         vis_steadystate(config, args["parameters"], args["verbose"])
+
+    # Comparison
     elif args["mode"] == "compare":
         # Load config files
         assert args["comparison"] is not None, "Comparison needs a yaml file"
@@ -359,8 +364,6 @@ if __name__ == "__main__":
 
         # Check if we supplied tags for identification
         assert args["tags"] is not None, "Provide tags for identifying a run!"
-        # Start time
-        start_time = time.time()
 
         # Don't create/save in case of debugging
         if args["verbose"]:
@@ -379,3 +382,34 @@ if __name__ == "__main__":
 
         # Perform comparison
         vis_comparison(configs, comparison, args["verbose"])
+
+    # Analysis
+    elif args["mode"] == "analyze":
+        # Read config file
+        assert args["config"] is not None, "Analysis needs a single configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
+        # Check if folder of parameters was supplied
+        assert os.path.isdir(
+            args["parameters"]
+        ), "Provide a folder of parameters for analysis!"
+
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Set log location to the one supplied
+            folder_id = args["parameters"].split("/")[-2]
+            config["log location"] = (
+                "/".join(args["config"].split("/")[:-1])
+                + "/analysis+"
+                + folder_id
+                + "+"
+            )
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
+            os.makedirs(config["log location"])
+
+        # Perform sensitivity analysis
+        vis_sensitivity(config, args["parameters"], args["verbose"])

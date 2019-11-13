@@ -56,4 +56,4 @@ def evaluate(valid_objectives, config, env, h0, individual):
 
     # Select appropriate objectives
     # List, so order is guaranteed
-    return [objectives[obj] for obj in config["evo"]["objectives"]]
+    return [objectives[obj] / len(h0) for obj in config["evo"]["objectives"]]
