@@ -325,10 +325,6 @@ if __name__ == "__main__":
         with open(args["config"], "r") as cf:
             config = yaml.full_load(cf)
 
-        # Check if single set of parameters was supplied
-        assert len(args["parameters"]) == 1, "Provide a single network for testing!"
-        args["parameters"] = args["parameters"][0]
-
         # Don't create/save in case of debugging
         if args["verbose"]:
             # Set log location to the one supplied

@@ -27,7 +27,7 @@ class ANN(nn.Module):
             param.requires_grad = False
 
     def forward(self, x):
-        # x = self._encode(x)
+        x = self._encode(x)
         x = F.relu(self.fc1(x))
         return self.fc2(x)
 

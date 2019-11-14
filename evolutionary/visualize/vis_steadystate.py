@@ -19,10 +19,10 @@ def vis_steadystate(config, parameters, verbose=2):
     network = build_network(config)
     network.load_state_dict(torch.load(parameters))
 
-    # Do one run from 4m
+    # Do one run from 5m
     if isinstance(network, SNNNetwork):
         network.reset_state()
-    obs = env.reset(h0=config["env"]["h0"][1])
+    obs = env.reset(h0=(config["env"]["h0"][0] + config["env"]["h0"][-1]) / 2)
     done = False
 
     # For plotting

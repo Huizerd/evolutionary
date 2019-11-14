@@ -20,11 +20,11 @@ env:
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
   dt: [0.02, 0.0333]
-  ds act: [1, 2]
+  ds act: [1, 2]  # don't use this, superfluous
   jitter: [0.0, 0.2]
   max time: 30.0
   seeds: 100
 net:
   network: ANN
   hidden size: 20
-  encoding: both
+  encoding: divergence
