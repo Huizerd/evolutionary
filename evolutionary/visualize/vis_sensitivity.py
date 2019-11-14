@@ -43,8 +43,10 @@ def vis_sensitivity(config, parameters, verbose=2):
             network.load_state_dict(torch.load(param))
 
             # Reset env and net (may be superfluous)
+            # Also reseed env to make noise equal across runs!
             # Only test from 5m
             obs = env.reset(h0=(config["env"]["h0"][0] + config["env"]["h0"][-1]) / 2)
+            env.seed(env.seeds)
             if isinstance(network, SNNNetwork):
                 network.reset_state()
 
