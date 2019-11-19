@@ -50,7 +50,8 @@ def main(config, verbose):
 
     # Objectives
     # All possible objectives: air time, time to land, final height, final offset,
-    # final offset from 5 m, final velocity, unsigned divergence, signed divergence
+    # final offset from 5 m, final velocity, unsigned divergence, signed divergence,
+    # total spikes (to minimize energy)
     valid_objectives = [
         "air time",
         "time to land",
@@ -61,9 +62,15 @@ def main(config, verbose):
         "final velocity squared",
         "unsigned divergence",
         "signed divergence",
+        "spikes",
         "dummy",
     ]
-    assert len(config["evo"]["objectives"]) == 3, "Only 3 objectives are supported"
+    assert (
+        len(config["evo"]["objectives"]) >= 3
+    ), "Only 3 or more objectives are supported"
+    assert len(config["evo"]["objectives"]) == len(
+        config["evo"]["obj weights"]
+    ), "There should be as many weights as objectives"
     assert all(
         [obj in valid_objectives for obj in config["evo"]["objectives"]]
     ), "Invalid objective"
@@ -134,13 +141,25 @@ def main(config, verbose):
     if verbose:
         # Plot population fitness and its relevant part
         # Doesn't work in the cloud for some reason
+        last_pop = []
+        last_rel = []
         if not cloud:
-            last_pop = vis_population(
-                population, hof, config["evo"]["objectives"], verbose=verbose
+            for dims in config["evo"]["plot 3D"]:
+                last_pop.append(
+                    vis_population(
+                        population,
+                        hof,
+                        config["evo"]["objectives"],
+                        dims,
+                        verbose=verbose,
+                    )
+                )
+        for dims in config["evo"]["plot 2D"]:
+            last_rel.append(
+                vis_relevant(
+                    population, hof, config["evo"]["objectives"], dims, verbose=verbose
+                )
             )
-        last_rel = vis_relevant(
-            population, hof, config["evo"]["objectives"], verbose=verbose
-        )
 
         # Create folders for parameters
         os.makedirs(f"{config['log location']}hof_000/")
@@ -148,9 +167,11 @@ def main(config, verbose):
         # And log the initial performance
         # Figures
         if not cloud:
-            last_pop[0].savefig(f"{config['fig location']}population_000.png")
-        if last_rel is not None:
-            last_rel[0].savefig(f"{config['fig location']}relevant_000.png")
+            for i, last in enumerate(last_pop):
+                last[0].savefig(f"{config['fig location']}population{i}_000.png")
+        for i, last in enumerate(last_rel):
+            if last is not None:
+                last[0].savefig(f"{config['fig location']}relevant{i}_000.png")
         # Parameters
         for i, ind in enumerate(hof):
             torch.save(
@@ -212,20 +233,28 @@ def main(config, verbose):
         if verbose:
             # Plot population fitness and the relevant part of it
             if not cloud:
-                last_pop = vis_population(
+                for i, last, dims in zip(
+                    range(len(last_pop)), last_pop, config["evo"]["plot 3D"]
+                ):
+                    last_pop[i] = vis_population(
+                        population,
+                        hof,
+                        config["evo"]["objectives"],
+                        dims,
+                        last=last,
+                        verbose=verbose,
+                    )
+            for i, last, dims in zip(
+                range(len(last_rel)), last_rel, config["evo"]["plot 2D"]
+            ):
+                last_rel[i] = vis_relevant(
                     population,
                     hof,
                     config["evo"]["objectives"],
-                    last=last_pop,
+                    dims,
+                    last=last,
                     verbose=verbose,
                 )
-            last_rel = vis_relevant(
-                population,
-                hof,
-                config["evo"]["objectives"],
-                last=last_rel,
-                verbose=verbose,
-            )
 
             # Log every so many generations
             if not gen % config["log interval"] or gen == config["evo"]["gens"] - 1:
@@ -235,13 +264,15 @@ def main(config, verbose):
 
                 # Save population figure
                 if not cloud:
-                    last_pop[0].savefig(
-                        f"{config['fig location']}population_{gen:03}.png"
-                    )
-                if last_rel is not None:
-                    last_rel[0].savefig(
-                        f"{config['fig location']}relevant_{gen:03}.png"
-                    )
+                    for i, last in enumerate(last_pop):
+                        last[0].savefig(
+                            f"{config['fig location']}population{i}_{gen:03}.png"
+                        )
+                for i, last in enumerate(last_rel):
+                    if last is not None:
+                        last[0].savefig(
+                            f"{config['fig location']}relevant{i}_{gen:03}.png"
+                        )
 
                 # Save parameters of hall of fame individuals
                 for i, ind in enumerate(hof):

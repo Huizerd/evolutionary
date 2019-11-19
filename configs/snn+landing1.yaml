@@ -6,8 +6,10 @@ evo:
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
   types: []
-  obj weights: [-1.0, -1.0, -1.0]
-  objectives: [time to land, final height, final velocity]  # second dim not plotted in relevant (so put least important here)
+  obj weights: [-1.0, -1.0, -1.0, -1.0]
+  objectives: [time to land, final height, final velocity, spikes]
+  plot 2D: [[0, 2], [0, 3]]  # combinations of objectives to plot in 2D
+  plot 3D: [[0, 1, 2], [0, 2, 3]]  # combinations of objectives to plot in 3D
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]

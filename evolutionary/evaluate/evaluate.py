@@ -27,6 +27,12 @@ def evaluate(valid_objectives, config, env, h0, individual):
             # Increment (un)signed divergence scores each step
             objectives["unsigned divergence"] += abs(div)
             objectives["signed divergence"] += div
+            # Increment number of spikes each step
+            if isinstance(individual[0], SNNNetwork):
+                objectives["spikes"] += (
+                    individual[0].neuron1.spikes.sum().item()
+                    + individual[0].neuron2.spikes.sum().item()
+                )
 
         # Increment other scores
         # Air time
