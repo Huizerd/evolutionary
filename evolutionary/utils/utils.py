@@ -41,3 +41,14 @@ def getset_env(env, config=None):
         config["jitter"] = env.jitter_prob
         config["seeds"] = env.seeds
         return config
+
+
+def is_pareto_efficient(costs):
+    is_efficient = np.ones(costs.shape[0], dtype=np.bool)
+    for i, c in enumerate(costs):
+        if is_efficient[i]:
+            is_efficient[is_efficient] = np.any(
+                costs[is_efficient] < c, axis=1
+            )  # keep any point with a lower cost
+            is_efficient[i] = True  # and keep self
+    return is_efficient

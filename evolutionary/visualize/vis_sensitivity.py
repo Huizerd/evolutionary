@@ -9,10 +9,20 @@ import matplotlib.patches as patches
 from pysnn.network import SNNNetwork
 
 from evolutionary.utils.constructors import build_network, build_environment
-from evolutionary.utils.utils import randomize_env
+from evolutionary.utils.utils import randomize_env, is_pareto_efficient
 
 
 def vis_sensitivity(config, parameters, verbose=2):
+    # Check objectives
+    assert all(
+        [
+            obj1 == obj2
+            for obj1, obj2 in zip(
+                config["evo"]["objectives"][:3],
+                ["time to land", "final height", "final velocity"],
+            )
+        ]
+    ), "First 3 objectives should be time to land, final height and final velocity"
     # Expand to all parameter files
     # Also load fitnesses to compare consistency of our optimization
     # These should both be in the same order!
@@ -68,14 +78,17 @@ def vis_sensitivity(config, parameters, verbose=2):
 
     # Process results: get median and 25th and 75th percentiles
     percentiles = np.percentile(performance, [25, 50, 75], 1)
-    mean_stds = np.std(performance, 1).mean(0)
+    stds = np.std(performance, 1)
     print(
-        f"Mean sigmas for time: {mean_stds[0]:.3f}; height: {mean_stds[1]:.3f}; velocity: {mean_stds[2]:.3f}"
+        f"Mean sigmas for time: {stds.mean(0)[0]:.3f}; height: {stds.mean(0)[1]:.3f}; velocity: {stds.mean(0)[2]:.3f}"
     )
 
     # Save results
     # Before filtering!
     if verbose:
+        pd.DataFrame(
+            stds, columns=["time to land", "final height", "final velocity"]
+        ).to_csv(f"{config['log location']}sensitivity_stds.txt", index=False, sep="\t")
         pd.DataFrame(
             np.concatenate(
                 [
@@ -87,25 +100,26 @@ def vis_sensitivity(config, parameters, verbose=2):
                 axis=1,
             ),
             columns=[
-                "fit_0",
-                "fit_1",
-                "fit_2",
-                "25th_0",
-                "25th_1",
-                "25th_2",
-                "50th_0",
-                "50th_1",
-                "50th_2",
-                "75th_0",
-                "75th_1",
-                "75th_2",
+                "time to land",
+                "final height",
+                "final velocity",
+                "25th_ttl",
+                "25th_fh",
+                "25th_fv",
+                "50th_ttl",
+                "50th_fh",
+                "50th_fv",
+                "75th_ttl",
+                "75th_fh",
+                "75th_fv",
             ],
         ).to_csv(f"{config['log location']}sensitivity.txt", index=False, sep="\t")
 
     # Filter results
-    mask = (percentiles[1, :, 0] < 10.0) & (percentiles[1, :, 2] < 2.0)
-    fitnesses = fitnesses[mask, :]
-    percentiles = percentiles[:, mask, :]
+    mask = (percentiles[1, :, 0] < 10.0) & (percentiles[1, :, 2] < 1.0)
+    efficient = is_pareto_efficient(percentiles[1, :, :])
+    fitnesses = fitnesses[mask & efficient, :]
+    percentiles = percentiles[:, mask & efficient, :]
 
     # Plot results
     fig, ax = plt.subplots(1, 1, dpi=200)
@@ -113,7 +127,7 @@ def vis_sensitivity(config, parameters, verbose=2):
     ax.set_xlabel(config["evo"]["objectives"][0])
     ax.set_ylabel(config["evo"]["objectives"][2])
     ax.set_xlim([0.0, 10.0])
-    ax.set_ylim([0.0, 2.0])
+    ax.set_ylim([0.0, 1.0])
     ax.grid()
     # Rectangles for 25th and 75th
     for i in range(percentiles.shape[1]):
@@ -137,7 +151,7 @@ def vis_sensitivity(config, parameters, verbose=2):
         ax.text(
             percentiles[1, i, 0],
             percentiles[1, i, 2],
-            str(int(fitnesses[i, 3])),
+            str(int(fitnesses[i, -1])),
             va="top",
             fontsize=7,
         )
@@ -146,6 +160,7 @@ def vis_sensitivity(config, parameters, verbose=2):
     ax.scatter(percentiles[1, :, 0], percentiles[1, :, 2], s=6)
     # Old fitnesses
     ax.scatter(fitnesses[:, 0], fitnesses[:, 2], s=6)
+    fig.tight_layout()
 
     # Save figure
     if verbose:

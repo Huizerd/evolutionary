@@ -115,7 +115,7 @@ def vis_performance(config, parameters, verbose=2):
         for ax in axs_p:
             ax.grid()
             ax.legend()
-        plt.tight_layout()
+        fig_p.tight_layout()
 
         if verbose:
             plt.savefig(f"{config['log location']}performance+{int(h)}m.png")

@@ -95,6 +95,7 @@ def vis_steadystate(config, parameters, verbose=2):
 
     ax_c.legend()
     ax_c.grid()
+    fig_c.tight_layout()
 
     if verbose:
         fig_c.savefig(f"{config['log location']}ss_corners.png")

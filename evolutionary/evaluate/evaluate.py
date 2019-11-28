@@ -17,6 +17,7 @@ def evaluate(valid_objectives, config, env, h0, individual):
             individual[0].reset_state()
         obs = env.reset(h0=h)
         done = False
+        spikes = 0
 
         while not done:
             # Step the environment
@@ -29,7 +30,7 @@ def evaluate(valid_objectives, config, env, h0, individual):
             objectives["signed divergence"] += div
             # Increment number of spikes each step
             if isinstance(individual[0], SNNNetwork):
-                objectives["spikes"] += (
+                spikes += (
                     individual[0].neuron1.spikes.sum().item()
                     + individual[0].neuron2.spikes.sum().item()
                 )
@@ -59,6 +60,10 @@ def evaluate(valid_objectives, config, env, h0, individual):
 
         # Signed divergence should be taken absolute now, since we want to minimize it
         objectives["signed divergence"] = abs(objectives["signed divergence"])
+
+        # Spikes divided by real time to land, because we don't want to overly stimulate
+        # too fast landings
+        objectives["spikes"] += spikes / (env.t - config["env"]["settle"])
 
     # Select appropriate objectives
     # List, so order is guaranteed

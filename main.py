@@ -17,11 +17,14 @@ from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
+from evolutionary.utils.model_to_text import model_to_text
 from evolutionary.visualize.vis_comparison import vis_comparison
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
 from evolutionary.visualize.vis_sensitivity import vis_sensitivity
+from evolutionary.visualize.vis_out_dynamics import vis_out_dynamics
+from evolutionary.visualize.vis_statistics import vis_statistics
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 
@@ -303,7 +306,9 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["train", "test", "compare", "analyze"], default="train"
+        "--mode",
+        choices=["train", "test", "compare", "analyze", "save"],
+        default="train",
     )
     parser.add_argument(
         "--verbose", type=int, choices=[0, 1, 2, 3], default=2
@@ -318,7 +323,7 @@ if __name__ == "__main__":
     # Training
     if args["mode"] == "train":
         # Read config file
-        assert args["config"] is not None, "Training needs a single configuration file"
+        assert args["config"] is not None, "Training needs a configuration file"
         with open(args["config"], "r") as cf:
             config = yaml.full_load(cf)
 
@@ -352,7 +357,7 @@ if __name__ == "__main__":
     # Testing
     elif args["mode"] == "test":
         # Read config file
-        assert args["config"] is not None, "Testing needs a single configuration file"
+        assert args["config"] is not None, "Testing needs a configuration file"
         with open(args["config"], "r") as cf:
             config = yaml.full_load(cf)
 
@@ -413,7 +418,7 @@ if __name__ == "__main__":
     # Analysis
     elif args["mode"] == "analyze":
         # Read config file
-        assert args["config"] is not None, "Analysis needs a single configuration file"
+        assert args["config"] is not None, "Analysis needs a configuration file"
         with open(args["config"], "r") as cf:
             config = yaml.full_load(cf)
 
@@ -438,5 +443,35 @@ if __name__ == "__main__":
             config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
 
+        # Visualize output dynamics
+        vis_out_dynamics(config, args["parameters"], args["verbose"])
         # Perform sensitivity analysis
         vis_sensitivity(config, args["parameters"], args["verbose"])
+        # Perform statistical analysis
+        vis_statistics(config, args["parameters"], args["verbose"])
+
+    # Save model to text
+    elif args["mode"] == "save":
+        # Read config file
+        assert args["config"] is not None, "Saving needs a configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Set log location to the one supplied
+            individual_id = "_".join(
+                [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
+            )
+            config["log location"] = (
+                "/".join(args["config"].split("/")[:-1])
+                + "/saved+"
+                + individual_id
+                + "+"
+            )
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
+            os.makedirs(config["log location"])
+        model_to_text(config, args["parameters"], args["verbose"])
