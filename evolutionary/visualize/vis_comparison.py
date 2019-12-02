@@ -79,6 +79,7 @@ def vis_comparison(configs, comparison, verbose=2):
                     )
 
                 # Get overall min and max
+                # Return None if 0D tensor (?)
                 try:
                     statics[gene] = (
                         min(
@@ -105,6 +106,8 @@ def vis_comparison(configs, comparison, verbose=2):
                 for i in range(len(performance[name][id][h])):
                     if isinstance(network, SNNNetwork):
                         network.reset_state()
+                    # Randomize per altitude per run per individual, so not very fair
+                    # across individuals because all experience different conditions...
                     env = randomize_env(env, config)
                     performance[name][id][h][i][0] = env.dt
                     obs = env.reset(h0=h)
