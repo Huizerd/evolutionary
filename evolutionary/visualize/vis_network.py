@@ -14,25 +14,24 @@ def vis_network(config, parameters, verbose=2):
     network.load_state_dict(torch.load(parameters))
 
     # Get parameters that are more suited to be printed in text
-    params = {"evolved": {}, "fixed": {}}
+    print_params = {"evolved": {}, "fixed": {}}
     for param in ["alpha_v", "alpha_t", "alpha_thresh", "tau_v", "tau_t", "tau_thresh"]:
         values = OrderedDict(
             [
                 (name, round(getattr(child, param).view(-1)[0].item(), 3))
                 for name, child in network.named_children()
-                if hasattr(child, param)
-                and (getattr(child, param) == getattr(child, param).view(-1)[0]).all()
+                if hasattr(child, param) and "all" not in config["evo"]["types"]
             ]
         )
-        if param in config["evo"]["genes"]:
-            params["evolved"][param] = values
-        else:
-            params["fixed"][param] = values
+        if param in config["evo"]["genes"] and values:
+            print_params["evolved"][param] = values
+        elif param not in config["evo"]["genes"] and values:
+            print_params["fixed"][param] = values
 
     # Print parameters to file
     if verbose:
         with open(config["log location"] + "net_param.yaml", "w") as f:
-            yaml.dump(params, f, default_flow_style=False)
+            yaml.dump(print_params, f, default_flow_style=False)
 
     # Go over all genes and create separate figures
     # Note that weights/delays belong to connections/layers, while others belong to neurons
@@ -40,9 +39,10 @@ def vis_network(config, parameters, verbose=2):
         # Continue when it was a scalar value (or same for all neurons in a layer), and
         # we already printed it in the file previously (note that the below dicts don't
         # overlap, and that merging them isn't a problem)
-        if gene in {**params["evolved"], **params["fixed"]}:
+        if gene in {**print_params["evolved"], **print_params["fixed"]}:
             continue
 
+        print(gene)
         # Get parameters
         params = OrderedDict(
             [
@@ -64,7 +64,7 @@ def vis_network(config, parameters, verbose=2):
                 )
                 axs[0, i].set_xlabel("post neuron id")
                 axs[0, i].set_ylabel("pre neuron id")
-            elif gene == "thresh" or gene == "bias":
+            else:
                 im = axs[0, i].imshow(
                     param.view(1, -1).numpy(),
                     cmap=parula_map,

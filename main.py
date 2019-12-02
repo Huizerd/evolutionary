@@ -19,16 +19,10 @@ from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
 from evolutionary.utils.model_to_text import model_to_text
-from evolutionary.visualize.vis_comparison import vis_comparison
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
-from evolutionary.visualize.vis_sensitivity import (
-    vis_sensitivity,
-    vis_sensitivity_complete,
-)
-from evolutionary.visualize.vis_out_dynamics import vis_out_dynamics
-from evolutionary.visualize.vis_statistics import vis_statistics
+from evolutionary.visualize.vis_sensitivity import vis_sensitivity_complete
 from evolutionary.visualize.vis_population import vis_population, vis_relevant
 
 
@@ -46,7 +40,7 @@ def main(config, verbose):
         processes = multiprocessing.cpu_count() - 4
         cloud = True
     else:
-        processes = multiprocessing.cpu_count() - 2
+        processes = multiprocessing.cpu_count()
         cloud = False
     pool = multiprocessing.Pool(processes=processes)
 
@@ -57,22 +51,8 @@ def main(config, verbose):
     env = build_environment(config)
 
     # Objectives
-    # All possible objectives: air time, time to land, final height, final offset,
-    # final offset from 5 m, final velocity, final velocity squared,
-    # unsigned divergence, signed divergence, spikes per second (to minimize energy)
-    valid_objectives = [
-        "air time",
-        "time to land",
-        "final height",
-        "final offset",
-        "final offset 5m",
-        "final velocity",
-        "final velocity squared",
-        "unsigned divergence",
-        "signed divergence",
-        "spikes",
-        "dummy",
-    ]
+    # Time to land, final height, final velocity, spikes per second
+    valid_objectives = ["time to land", "final height", "final velocity", "spikes"]
     assert (
         len(config["evo"]["objectives"]) >= 3
     ), "Only 3 or more objectives are supported"
@@ -334,9 +314,7 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode",
-        choices=["train", "test", "compare", "analyze", "save"],
-        default="train",
+        "--mode", choices=["train", "test", "analyze", "save"], default="train"
     )
     parser.add_argument(
         "--verbose", type=int, choices=[0, 1, 2, 3], default=2
@@ -344,7 +322,6 @@ if __name__ == "__main__":
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", type=str, default=None)
-    parser.add_argument("--comparison", type=str, default=None)
     args = vars(parser.parse_args())
 
     # Modes of execution
@@ -416,38 +393,6 @@ if __name__ == "__main__":
         # Visualize steady-state output for certain inputs
         vis_steadystate(config, args["parameters"], args["verbose"])
 
-    # Comparison
-    elif args["mode"] == "compare":
-        # Load config files
-        assert args["comparison"] is not None, "Comparison needs a yaml file"
-        with open(args["comparison"], "r") as cf:
-            comparison = yaml.full_load(cf)
-            configs = []
-            for conf in comparison["configs"]:
-                with open(conf, "r") as ccf:
-                    configs.append(yaml.full_load(ccf))
-
-        # Check if we supplied tags for identification
-        assert args["tags"] is not None, "Provide tags for identifying a run!"
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Create folders, add suffix if necessary
-            comparison["log location"] += "+".join(args["tags"]) + "+"
-            suffix = 0
-            while os.path.exists(comparison["log location"] + str(suffix) + "/"):
-                suffix += 1
-            comparison["log location"] += str(suffix) + "/"
-            os.makedirs(comparison["log location"])
-
-            # Save comparison file and tags there
-            copyfile(args["comparison"], comparison["log location"] + "comparison.yaml")
-            with open(comparison["log location"] + "tags.txt", "w") as f:
-                f.write(" ".join(args["tags"]))
-
-        # Perform comparison
-        vis_comparison(configs, comparison, args["verbose"])
-
     # Analysis
     elif args["mode"] == "analyze":
         # Read config file
@@ -476,13 +421,8 @@ if __name__ == "__main__":
             config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
 
-        # Visualize output dynamics
-        vis_out_dynamics(config, args["parameters"], args["verbose"])
         # Perform sensitivity analysis
-        # vis_sensitivity(config, args["parameters"], args["verbose"])
         vis_sensitivity_complete(config, args["parameters"], args["verbose"])
-        # Perform statistical analysis
-        # vis_statistics(config, args["parameters"], args["verbose"])
 
     # Save model to text
     elif args["mode"] == "save":

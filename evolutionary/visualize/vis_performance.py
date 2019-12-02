@@ -98,6 +98,10 @@ def vis_performance(config, parameters, verbose=2):
         elif isinstance(network, SNNNetwork) and network.encoding == "divergence":
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 0], label="Encoded +D")
             axs_p[3].plot(time_list, np.array(encoding_list)[:, 1], label="Encoded -D")
+        elif isinstance(network, SNNNetwork) and network.encoding == "place":
+            axs_p[3].plot(
+                time_list, np.array(encoding_list).argmax(1), label="Place cell ID"
+            )
         axs_p[3].set_ylabel("divergence [1/s]")
         # Divergence dot
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], label="GT div dot")

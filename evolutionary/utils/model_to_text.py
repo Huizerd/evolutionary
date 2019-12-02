@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 
-from pysnn.neuron import LIFNeuron, AdaptiveLIFNeuron
+from pysnn.neuron import AdaptiveLIFNeuron
 
 from evolutionary.utils.constructors import build_network
 
