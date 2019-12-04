@@ -34,8 +34,8 @@ np.set_printoptions(suppress=True)
 def main(config, verbose):
     # Don't bother with determinism since tournament is stochastic!
 
-    # Global statement to be able to use it between loops
-    global last_time
+    # Set last time to start time
+    last_time = start_time
 
     # MP
     processes = multiprocessing.cpu_count() // 2
@@ -46,7 +46,8 @@ def main(config, verbose):
 
     # Build environments and randomize
     envs = [build_environment(config) for _ in config["env"]["h0"]]
-    envs = [randomize_env(env, config) for env in envs]
+    for env in envs:
+        randomize_env(env, config)
 
     # Objectives
     # Time to land, final height, final velocity, spikes per second
@@ -179,7 +180,8 @@ def main(config, verbose):
         # Each individual in a generation experiences the same environments,
         # but re-seeding per individual is not done to prevent identically-performing
         # agents (and thus thousands of HOFs, due to stepping nature of SNNs)
-        [randomize_env(env, config) for env in envs]
+        for env in envs:
+            randomize_env(env, config)
 
         # Selection: Pareto front + best of the rest
         pareto_fronts = tools.sortNondominated(population, len(population))
@@ -331,7 +333,6 @@ if __name__ == "__main__":
         assert args["tags"] is not None, "Provide tags for identifying a run!"
         # Start time
         start_time = time.time()
-        last_time = start_time
 
         # Don't create/save in case of debugging
         if args["verbose"]:
