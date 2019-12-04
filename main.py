@@ -34,6 +34,9 @@ np.set_printoptions(suppress=True)
 def main(config, verbose):
     # Don't bother with determinism since tournament is stochastic!
 
+    # Global statement to be able to use it between loops
+    global last_time
+
     # MP
     processes = multiprocessing.cpu_count() // 2
     pool = multiprocessing.Pool(processes=processes)
