@@ -119,14 +119,27 @@ def main(config, verbose):
     # to the individuals, no actual selection is done
     population = toolbox.select(population, len(population))
 
+    # Update hall of fame
+    hof.update(population)
+
     # Log first record
     record = stats.compile(population)
     logbook.record(
         gen=0, evals=len(population), **{k: v.round(2) for k, v in record.items()}
     )
 
-    # Update hall of fame
-    hof.update(population)
+    # Log convergence (of first front) and hypervolume
+    pareto_fronts = tools.sortNondominated(population, len(population))
+    current_time = time.time()
+    minutes = (current_time - last_time) / 60
+    last_time = time.time()
+    time_past = (current_time - start_time) / 60
+    conv = convergence(pareto_fronts[0], optimal_front)
+    hyper = hypervolume(pareto_fronts[0], hyperref)
+    optim_performance.append([0, time_past, minutes, conv, hyper])
+    print(
+        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+    )
 
     if verbose:
         # Plot relevant part of population fitness
@@ -213,6 +226,7 @@ def main(config, verbose):
         )
 
         # Log convergence (of first front) and hypervolume
+        pareto_fronts = tools.sortNondominated(population, len(population))
         current_time = time.time()
         minutes = (current_time - last_time) / 60
         last_time = time.time()
@@ -221,7 +235,7 @@ def main(config, verbose):
         hyper = hypervolume(pareto_fronts[0], hyperref)
         optim_performance.append([gen, time_past, minutes, conv, hyper])
         print(
-            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, gen: {gen - 1}, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
         )
 
         if verbose:
