@@ -219,9 +219,9 @@ def main(config, verbose):
         time_past = (current_time - start_time) / 60
         conv = convergence(pareto_fronts[0], optimal_front)
         hyper = hypervolume(pareto_fronts[0], hyperref)
-        optim_performance.append([conv, hyper])
+        optim_performance.append([gen, time_past, minutes, conv, hyper])
         print(
-            f"time past: {time_past:.2f} min, minutes: {minutes:.2f} min, gen: {gen - 1}, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, gen: {gen - 1}, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
         )
 
         if verbose:
@@ -276,7 +276,13 @@ def main(config, verbose):
                 # Save optimization performance
                 pd.DataFrame(
                     optim_performance,
-                    columns=["time past", "minutes", "convergence", "hypervolume"],
+                    columns=[
+                        "gen",
+                        "time past",
+                        "minutes",
+                        "convergence",
+                        "hypervolume",
+                    ],
                 ).to_csv(
                     f"{config['log location']}optim_performance.txt",
                     index=False,
