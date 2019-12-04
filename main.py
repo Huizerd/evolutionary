@@ -19,11 +19,12 @@ from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
 from evolutionary.utils.model_to_text import model_to_text
+from evolutionary.utils.utils import randomize_env
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
 from evolutionary.visualize.vis_sensitivity import vis_sensitivity_complete
-from evolutionary.visualize.vis_population import vis_population, vis_relevant
+from evolutionary.visualize.vis_population import vis_relevant
 
 
 # Suppress scientific notation
@@ -34,21 +35,15 @@ def main(config, verbose):
     # Don't bother with determinism since tournament is stochastic!
 
     # MP
-    # Detect GCP or local
-    # TODO: why is cloud so much slower than own laptop, even with 4x as many cores?
-    if multiprocessing.cpu_count() > 8:
-        processes = multiprocessing.cpu_count() - 4
-        cloud = True
-    else:
-        processes = multiprocessing.cpu_count()
-        cloud = False
+    processes = multiprocessing.cpu_count() // 2
     pool = multiprocessing.Pool(processes=processes)
 
     # Build network
     network = build_network_partial(config)
 
-    # Build environment and randomize it
-    env = build_environment(config)
+    # Build environments and randomize
+    envs = [build_environment(config) for _ in config["env"]["h0"]]
+    envs = [randomize_env(env, config) for env in envs]
 
     # Objectives
     # Time to land, final height, final velocity, spikes per second
@@ -81,7 +76,7 @@ def main(config, verbose):
     )
     toolbox.register(
         "evaluate",
-        partial(evaluate, valid_objectives, config, env, config["env"]["h0"]),
+        partial(evaluate, valid_objectives, config, envs, config["env"]["h0"]),
     )
     toolbox.register("mate", crossover_none)
     toolbox.register(
@@ -131,23 +126,10 @@ def main(config, verbose):
     hof.update(population)
 
     if verbose:
-        # Plot population fitness and its relevant part
-        last_pop = []
-        last_rel = []
-        # Only plot 3D figures when not running on cloud, some problem with matplotlib
-        if not cloud:
-            for dims in config["evo"]["plot 3D"]:
-                last_pop.append(
-                    vis_population(
-                        population,
-                        hof,
-                        config["evo"]["objectives"],
-                        dims,
-                        verbose=verbose,
-                    )
-                )
-        for dims in config["evo"]["plot 2D"]:
-            last_rel.append(
+        # Plot relevant part of population fitness
+        last_fig = []
+        for dims in config["evo"]["plot"]:
+            last_fig.append(
                 vis_relevant(
                     population, hof, config["evo"]["objectives"], dims, verbose=verbose
                 )
@@ -159,10 +141,7 @@ def main(config, verbose):
 
         # And log the initial performance
         # Figures
-        if not cloud:
-            for i, last in enumerate(last_pop):
-                last[0].savefig(f"{config['fig location']}population{i}_000.png")
-        for i, last in enumerate(last_rel):
+        for i, last in enumerate(last_fig):
             if last is not None:
                 last[0].savefig(f"{config['fig location']}relevant{i}_000.png")
         # Parameters
@@ -180,6 +159,12 @@ def main(config, verbose):
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
+        # Randomize environments (in-place) for this generation
+        # Each individual in a generation experiences the same environments,
+        # but re-seeding per individual is not done to prevent identically-performing
+        # agents (and thus thousands of HOFs, due to stepping nature of SNNs)
+        [randomize_env(env, config) for env in envs]
+
         # Selection: Pareto front + best of the rest
         pareto_fronts = tools.sortNondominated(population, len(population))
         selection = pareto_fronts[0]
@@ -225,30 +210,23 @@ def main(config, verbose):
         )
 
         # Log convergence (of first front) and hypervolume
+        current_time = time.time()
+        minutes = (current_time - last_time) / 60
+        last_time = time.time()
+        time_past = (current_time - start_time) / 60
         conv = convergence(pareto_fronts[0], optimal_front)
         hyper = hypervolume(pareto_fronts[0], hyperref)
         optim_performance.append([conv, hyper])
-        print(f"gen: {gen - 1}, convergence: {conv:.3f}, hypervolume: {hyper:.3f}")
+        print(
+            f"time past: {time_past:.2f} min, minutes: {minutes:.2f} min, gen: {gen - 1}, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+        )
 
         if verbose:
-            # Plot population fitness and the relevant part of it
-            # Again, don't print 3D figures when not on laptop
-            if not cloud:
-                for i, last, dims in zip(
-                    range(len(last_pop)), last_pop, config["evo"]["plot 3D"]
-                ):
-                    last_pop[i] = vis_population(
-                        population,
-                        hof,
-                        config["evo"]["objectives"],
-                        dims,
-                        last=last,
-                        verbose=verbose,
-                    )
+            # Plot relevant part of population fitness
             for i, last, dims in zip(
-                range(len(last_rel)), last_rel, config["evo"]["plot 2D"]
+                range(len(last_fig)), last_fig, config["evo"]["plot"]
             ):
-                last_rel[i] = vis_relevant(
+                last_fig[i] = vis_relevant(
                     population,
                     hof,
                     config["evo"]["objectives"],
@@ -264,12 +242,7 @@ def main(config, verbose):
                     os.makedirs(f"{config['log location']}hof_{gen:03}/")
 
                 # Save population figure
-                if not cloud:
-                    for i, last in enumerate(last_pop):
-                        last[0].savefig(
-                            f"{config['fig location']}population{i}_{gen:03}.png"
-                        )
-                for i, last in enumerate(last_rel):
+                for i, last in enumerate(last_fig):
                     if last is not None:
                         last[0].savefig(
                             f"{config['fig location']}relevant{i}_{gen:03}.png"
@@ -299,7 +272,8 @@ def main(config, verbose):
 
                 # Save optimization performance
                 pd.DataFrame(
-                    optim_performance, columns=["convergence", "hypervolume"]
+                    optim_performance,
+                    columns=["time past", "minutes", "convergence", "hypervolume"],
                 ).to_csv(
                     f"{config['log location']}optim_performance.txt",
                     index=False,
@@ -316,9 +290,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode", choices=["train", "test", "analyze", "save"], default="train"
     )
-    parser.add_argument(
-        "--verbose", type=int, choices=[0, 1, 2, 3], default=2
-    )  # TODO: 3 for saving values only, not yet implemented
+    parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", type=str, default=None)
@@ -336,6 +308,7 @@ if __name__ == "__main__":
         assert args["tags"] is not None, "Provide tags for identifying a run!"
         # Start time
         start_time = time.time()
+        last_time = start_time
 
         # Don't create/save in case of debugging
         if args["verbose"]:

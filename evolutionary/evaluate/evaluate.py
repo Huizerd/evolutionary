@@ -5,13 +5,11 @@ from pysnn.network import SNNNetwork
 from evolutionary.utils.utils import randomize_env
 
 
-def evaluate(valid_objectives, config, env, h0, individual):
+def evaluate(valid_objectives, config, envs, h0, individual):
     # Keep track of all possible objectives
     objectives = {obj: 0.0 for obj in valid_objectives}
 
-    for h in h0:
-        # Randomize environment for each altitude to get better generalization
-        env = randomize_env(env, config)
+    for h, env in zip(h0, envs):
         # Reset network and env
         if isinstance(individual[0], SNNNetwork):
             individual[0].reset_state()

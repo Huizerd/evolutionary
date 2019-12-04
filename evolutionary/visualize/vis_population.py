@@ -9,14 +9,8 @@ def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
     assert len(plot_obj) == 2, "Provide 2 dimensions/objectives to be plotted"
     obj_limits = []
     for obj in obj_labels:
-        if obj == "unsigned divergence" or obj == "signed divergence":
-            obj_limits.append(250.0)
-        elif obj == "final offset" or obj == "final offset 5m":
-            obj_limits.append(1.0)
-        elif obj == "time to land":
+        if obj == "time to land":
             obj_limits.append(10.0)
-        elif obj == "final velocity squared":
-            obj_limits.append(4.0)
         elif obj == "final velocity":
             obj_limits.append(2.0)
         elif obj == "spikes":

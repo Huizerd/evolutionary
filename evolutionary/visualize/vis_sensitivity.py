@@ -16,6 +16,11 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
     # In order to combine multiple evolution runs: put them as subdirectories in one
     # big folder and use that as parameter argument
     parameters = sorted(Path(parameters).rglob("*.net"))
+    ids = np.arange(0, len(parameters))
+    # Save parameters with indices as DataFrame for later identification of good controllers
+    pd.DataFrame(
+        [(i, p) for i, p in zip(ids, parameters)], columns=["id", "location"]
+    ).to_csv(f"{config['log location']}ids.txt", index=False, sep="\t")
 
     # Build environment
     env = build_environment(config)
@@ -84,7 +89,12 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
         ).to_csv(f"{config['log location']}sensitivity_stds.txt", index=False, sep="\t")
         pd.DataFrame(
             np.concatenate(
-                [percentiles[0, :, :], percentiles[1, :, :], percentiles[2, :, :]],
+                [
+                    percentiles[0, :, :],
+                    percentiles[1, :, :],
+                    percentiles[2, :, :],
+                    ids[:, None],
+                ],
                 axis=1,
             ),
             columns=[
@@ -100,6 +110,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
                 "75th_fh",
                 "75th_fv",
                 "75th_s",
+                "id",
             ],
         ).to_csv(f"{config['log location']}sensitivity.txt", index=False, sep="\t")
         # Also save raw performance as npz
@@ -107,20 +118,24 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
 
     # Filter results
     mask = (percentiles[1, :, 0] < 10.0) & (percentiles[1, :, 2] < 1.0)
-    efficient = is_pareto_efficient(percentiles[1, :, :])
-    percentiles = percentiles[:, mask & efficient, :]
+    land = stds[:, 1] == 0.0
+    # efficient = is_pareto_efficient(percentiles[1, :, :])
+    percentiles = percentiles[:, mask & land, :]
+    # percentiles = percentiles[:, mask & land & efficient, :]
+    ids = ids[mask & land]
+    # ids = ids[mask & land & efficient]
 
     # Plot results
-    fig, ax = plt.subplots(1, 1, dpi=200)
-    ax.set_title("Performance sensitivity")
-    ax.set_xlabel(config["evo"]["objectives"][0])
-    ax.set_ylabel(config["evo"]["objectives"][2])
-    ax.set_xlim([0.0, 10.0])
-    ax.set_ylim([0.0, 1.0])
-    ax.grid()
+    fig1, ax1 = plt.subplots(1, 1, dpi=200)
+    ax1.set_title("Performance sensitivity")
+    ax1.set_xlabel(config["evo"]["objectives"][0])
+    ax1.set_ylabel(config["evo"]["objectives"][2])
+    ax1.set_xlim([0.0, 10.0])
+    ax1.set_ylim([0.0, 1.0])
+    ax1.grid()
 
     # Scatter plot with error bars for 25th and 75th
-    ax.errorbar(
+    ax1.errorbar(
         percentiles[1, :, 0],
         percentiles[1, :, 2],
         xerr=np.abs(percentiles[[0, 2], :, 0] - percentiles[1, :, 0]),
@@ -133,7 +148,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
         capthick=0.5,
         zorder=10,
     )
-    cb = ax.scatter(
+    cb = ax1.scatter(
         percentiles[1, :, 0],
         percentiles[1, :, 2],
         marker=".",
@@ -147,12 +162,28 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
         zorder=100,
     )
 
-    fig.colorbar(cb, ax=ax)
-    fig.tight_layout()
+    fig1.colorbar(cb, ax=ax1)
+    fig1.tight_layout()
+
+    # Also plot figure with IDs
+    fig2, ax2 = plt.subplots(1, 1, dpi=200)
+    ax2.set_title("Performance sensitivity")
+    ax2.set_xlabel(config["evo"]["objectives"][0])
+    ax2.set_ylabel(config["evo"]["objectives"][2])
+    ax2.set_xlim([0.0, 10.0])
+    ax2.set_ylim([0.0, 1.0])
+    ax2.grid()
+
+    # Scatter plot with error bars for 25th and 75th
+    for i in range(percentiles.shape[1]):
+        ax2.text(percentiles[1, i, 0], percentiles[1, i, 2], str(ids[i]), fontsize=5)
+    fig2.colorbar(cb, ax=ax2)
+    fig2.tight_layout()
 
     # Save figure
     if verbose:
-        fig.savefig(f"{config['log location']}sensitivity.png")
+        fig1.savefig(f"{config['log location']}sensitivity.png")
+        fig2.savefig(f"{config['log location']}ids.png")
 
     # Show figure
     if verbose > 1:

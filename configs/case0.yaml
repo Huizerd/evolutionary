@@ -6,7 +6,7 @@
 # - divergence + derivative as input
 
 log location: logs/cases/
-log interval: 20
+log interval: 50
 evo:
   gens: 400
   pop size: 100
@@ -17,8 +17,7 @@ evo:
   obj optimal: [[1.0, 0.05, 0.0]]
   obj worst: [100.0, 10.0, 10.0]
   objectives: [time to land, final height, final velocity]
-  plot 2D: [[0, 2]]  # combinations of objectives to plot in 2D
-  plot 3D: [[0, 1, 2]]  # combinations of objectives to plot in 3D
+  plot: [[0, 2]]  # combinations of objectives to plot
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]
