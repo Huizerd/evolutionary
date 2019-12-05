@@ -32,18 +32,16 @@ def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
 
     # Create figure and axis if not there, else unpack or leave
     # We had no figure and want one
-    if last is None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
+    if last is None:
         plt.ion()
         fig, ax = plt.subplots(1, 1, dpi=200)
-    # We had a figure and want to use the same
-    elif last is not None and (fitnesses.size > 0 or fitnesses_hof.size > 0):
-        fig, ax = last
-    # We had a figure and don't want to update it
-    elif last is not None and (fitnesses.size == 0 and fitnesses_hof.size == 0):
-        return last
-    # We had no figure and don't want one
+    # We had a figure
     else:
-        return None
+        fig, ax, _ = last
+
+    # We (still) don't have anything to plot
+    if fitnesses.size == 0 and fitnesses_hof.size == 0:
+        return fig, ax, False
 
     # Clear axis
     ax.cla()
@@ -82,7 +80,7 @@ def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
         fig.canvas.draw()
         fig.canvas.flush_events()
 
-    return fig, ax
+    return fig, ax, True
 
 
 def vis_population(population, hof, obj_labels, plot_obj, last=None, verbose=2):
@@ -139,6 +137,5 @@ def vis_population(population, hof, obj_labels, plot_obj, last=None, verbose=2):
     fig.tight_layout()
     if verbose > 1:
         fig.canvas.draw()
-        fig.canvas.flush_events()
 
     return fig, ax

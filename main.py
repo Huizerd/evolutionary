@@ -159,7 +159,7 @@ def main(config, verbose):
         # And log the initial performance
         # Figures
         for i, last in enumerate(last_fig):
-            if last is not None:
+            if last[2]:
                 last[0].savefig(f"{config['fig location']}relevant{i}_000.png")
         # Parameters
         for i, ind in enumerate(hof):
@@ -262,7 +262,7 @@ def main(config, verbose):
 
                 # Save population figure
                 for i, last in enumerate(last_fig):
-                    if last is not None:
+                    if last[2]:
                         last[0].savefig(
                             f"{config['fig location']}relevant{i}_{gen:03}.png"
                         )
