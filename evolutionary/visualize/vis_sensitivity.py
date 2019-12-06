@@ -78,7 +78,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
     percentiles = np.percentile(performance, [25, 50, 75], 1)
     stds = np.std(performance, 1)
     print(
-        f"Mean sigmas for time: {stds.mean(0)[0]:.3f}; height: {stds.mean(0)[1]:.3f}; velocity: {stds.mean(0)[2]:.3f}; spikes: {stds.mean(0)[3]:.3f}"
+        f"ID: {config['log location'].split('/')[-2]}, mean sigmas for time: {stds.mean(0)[0]:.3f}, height: {stds.mean(0)[1]:.3f}, velocity: {stds.mean(0)[2]:.3f}, spikes: {stds.mean(0)[3]:.3f}"
     )
 
     # Save results

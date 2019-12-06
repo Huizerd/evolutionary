@@ -1,3 +1,5 @@
+#! /usr/bin/env bash
+
 # Left: run parallel with right (since we only use half of the cores)
 # Case 0
 python main.py --config configs/case0.yaml --tags case0 left
