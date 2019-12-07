@@ -224,7 +224,9 @@ class SNN(SNNNetwork):
             # Works, because we take only divergence, so input has shape (1, 1, 1) and
             # in_centers has shape (1, 1, centers)
             self.input = self.in_scale * torch.exp(
-                -(input[..., 0] - self.in_centers) ** 2 / (2.0 * self.in_sigma ** 2)
+                -(input[..., 0].clamp_(-self.in_bound, self.in_bound) - self.in_centers)
+                ** 2
+                / (2.0 * self.in_sigma ** 2)
             )
             return self.input
 
