@@ -16,8 +16,8 @@ mkdir -p "${LOGDIR}/analysis/case0/case0"
 cp "${LOGDIR}/case0+left+0/config.yaml" "${LOGDIR}/analysis/case0/config.yaml"
 cp -a "${LOGDIR}/case0+left+0/hof_399" "${LOGDIR}/analysis/case0/case0/hof+left+0"
 cp -a "${LOGDIR}/case0+left+1/hof_399" "${LOGDIR}/analysis/case0/case0/hof+left+1"
-#cp -a "${LOGDIR}/case0+right+0/hof_399" "${LOGDIR}/analysis/case0/case0/hof+right+0"
-#cp -a "${LOGDIR}/case0+right+1/hof_399" "${LOGDIR}/analysis/case0/case0/hof+right+1"
+cp -a "${LOGDIR}/case0+right+0/hof_399" "${LOGDIR}/analysis/case0/case0/hof+right+0"
+cp -a "${LOGDIR}/case0+right+1/hof_399" "${LOGDIR}/analysis/case0/case0/hof+right+1"
 # Run analysis in background (since it only uses 1 core)
 python main.py \
 --mode analyze \
