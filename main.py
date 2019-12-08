@@ -20,7 +20,7 @@ from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
-from evolutionary.utils.model_to_text import model_to_text
+from evolutionary.utils.model_to_header import model_to_header
 from evolutionary.utils.utils import randomize_env
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
@@ -449,4 +449,4 @@ if __name__ == "__main__":
             os.makedirs(config["log location"])
 
         # Export model to text for use IRL
-        model_to_text(config, args["parameters"], args["verbose"])
+        model_to_header(config, args["parameters"], args["verbose"])

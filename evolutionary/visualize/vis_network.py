@@ -42,7 +42,6 @@ def vis_network(config, parameters, verbose=2):
         if gene in {**print_params["evolved"], **print_params["fixed"]}:
             continue
 
-        print(gene)
         # Get parameters
         params = OrderedDict(
             [
