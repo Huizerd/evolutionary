@@ -156,12 +156,23 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
                     and "all" in types
+                    and "uniform" not in types
                 ):
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" in types
+                    and "uniform" in types
+                ):
+                    param = getattr(child, gene)
+                    mutation = torch.empty_like(param).uniform_(0.0, 2.0)
+                    mask = torch.rand_like(param) < mutation_rate
+                    param.masked_scatter_(mask, mutation)
                 elif (
                     hasattr(child, gene)
                     and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
@@ -176,12 +187,23 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["tau_v", "tau_t", "tau_thresh"]
                     and "all" in types
+                    and "uniform" not in types
                 ):
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" in types
+                    and "uniform" in types
+                ):
+                    param = getattr(child, gene)
+                    mutation = torch.empty_like(param).uniform_(0.0, 1.0)
+                    mask = torch.rand_like(param) < mutation_rate
+                    param.masked_scatter_(mask, mutation)
                 elif (
                     hasattr(child, gene)
                     and gene in ["tau_v", "tau_t", "tau_thresh"]

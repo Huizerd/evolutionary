@@ -117,13 +117,20 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
         np.save(f"{config['log location']}raw_performance", performance)
 
     # Filter results
-    mask = (percentiles[1, :, 0] < 10.0) & (percentiles[1, :, 2] < 1.0)
-    land = stds[:, 1] == 0.0
-    # efficient = is_pareto_efficient(percentiles[1, :, :])
-    percentiles = percentiles[:, mask & land, :]
-    # percentiles = percentiles[:, mask & land & efficient, :]
-    ids = ids[mask & land]
-    # ids = ids[mask & land & efficient]
+    mask = (
+        (percentiles[1, :, 0] < 10.0)
+        & (percentiles[1, :, 2] < 1.0)
+        & (stds[:, 1] == 0.0)
+    )
+    efficient = is_pareto_efficient(percentiles[1, :, :])
+    mask_pareto = mask & efficient
+    percentiles = percentiles[:, mask, :]
+    ids = ids[mask]
+
+    # Also save filters/masks as npy for later use
+    if verbose:
+        np.save(f"{config['log location']}mask", mask)
+        np.save(f"{config['log location']}mask_pareto", mask_pareto)
 
     # Plot results
     fig1, ax1 = plt.subplots(1, 1, dpi=200)
