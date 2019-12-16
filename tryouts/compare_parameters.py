@@ -173,4 +173,6 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     # Call
-    compare_parameters(args["folder1"], args["folder2"], args["filter"], args["pareto"])
+    compare_parameters(
+        args["folder1"], args["folder2"], filter=args["filter"], pareto=args["pareto"]
+    )

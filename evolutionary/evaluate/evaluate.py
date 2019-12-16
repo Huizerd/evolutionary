@@ -34,11 +34,15 @@ def evaluate(valid_objectives, config, envs, h0, individual):
         # Time to land, final height and final velocity
         if env.t >= env.max_t or env.state[0] >= env.MAX_H:
             objectives["time to land"] += 100.0
+            objectives["time to land scaled"] += 100.0
             objectives["final velocity"] += 10.0
+            objectives["final velocity squared"] += 10.0
             objectives["final height"] += 10.0
         else:
             objectives["time to land"] += env.t - config["env"]["settle"]
+            objectives["time to land scaled"] += (env.t - config["env"]["settle"]) / h
             objectives["final velocity"] += abs(env.state[1])
+            objectives["final velocity squared"] += env.state[1] ** 2
             objectives["final height"] += env.state[0]
 
         # Spikes divided by real time to land, because we don't want to overly stimulate
