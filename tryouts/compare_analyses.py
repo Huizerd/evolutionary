@@ -158,4 +158,4 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     # Call
-    compare_analyses(args["folder1"], args["folder2"], args["pareto"])
+    compare_analyses(args["folder1"], args["folder2"], pareto=args["pareto"])

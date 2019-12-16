@@ -25,7 +25,10 @@ from evolutionary.utils.utils import randomize_env
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
-from evolutionary.visualize.vis_sensitivity import vis_sensitivity_complete
+from evolutionary.visualize.vis_sensitivity import (
+    vis_sensitivity_complete,
+    vis_sensitivity_complete_4m,
+)
 from evolutionary.visualize.vis_population import vis_relevant
 
 
@@ -53,7 +56,14 @@ def main(config, verbose):
 
     # Objectives
     # Time to land, final height, final velocity, spikes per second
-    valid_objectives = ["time to land", "final height", "final velocity", "spikes"]
+    valid_objectives = [
+        "time to land",
+        "time to land scaled",
+        "final height",
+        "final velocity",
+        "final velocity squared",
+        "spikes",
+    ]
     assert (
         len(config["evo"]["objectives"]) >= 3
     ), "Only 3 or more objectives are supported"
@@ -315,7 +325,9 @@ if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--mode", choices=["train", "test", "analyze", "save"], default="train"
+        "--mode",
+        choices=["train", "test", "analyze", "analyze4m", "save"],
+        default="train",
     )
     parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
     parser.add_argument("--config", type=str, default=None)
@@ -422,6 +434,37 @@ if __name__ == "__main__":
 
         # Perform sensitivity analysis
         vis_sensitivity_complete(config, args["parameters"], args["verbose"])
+
+    # Analysis from 4m
+    elif args["mode"] == "analyze4m":
+        # Read config file
+        assert args["config"] is not None, "Analysis needs a configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
+        # Check if folder of parameters was supplied
+        assert os.path.isdir(
+            args["parameters"]
+        ), "Provide a folder of parameters for analysis!"
+
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Set log location to the one supplied
+            folder_id = args["parameters"].split("/")[-2]
+            config["log location"] = (
+                "/".join(args["config"].split("/")[:-1])
+                + "/analysis4m+"
+                + folder_id
+                + "+"
+            )
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
+            os.makedirs(config["log location"])
+
+        # Perform sensitivity analysis
+        vis_sensitivity_complete_4m(config, args["parameters"], args["verbose"])
 
     # Save model to text
     elif args["mode"] == "save":
