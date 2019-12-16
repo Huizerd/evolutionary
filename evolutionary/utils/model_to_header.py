@@ -138,6 +138,7 @@ def model_to_header(config, in_file, verbose=2):
         # Get data
         centers = network.in_centers.view(-1).tolist()
         encoding_type = 1 if network.encoding == "place" else 0
+        decoding_scale = network.out_scale
         in_size = 2
         in_enc_size = network.neuron0.spikes.size(-1)
         hid_size = network.neuron1.spikes.size(-1)
@@ -151,7 +152,7 @@ def model_to_header(config, in_file, verbose=2):
             '#include "neuron_conf_hid.h"',
             '#include "neuron_conf_out.h"',
             f"float const centers[] = {{{', '.join([str(c) for c in centers])}}};",
-            f"NetworkConf const conf = {{{encoding_type}, centers, {in_size}, {in_enc_size}, {hid_size}, {out_size}, &conf_inhid, &conf_hid, &conf_hidout, &conf_out}};",
+            f"NetworkConf const conf = {{{encoding_type}, {decoding_scale}, centers, {in_size}, {in_enc_size}, {hid_size}, {out_size}, &conf_inhid, &conf_hid, &conf_hidout, &conf_out}};",
         ]
         # Write to file
         with open(f"{config['log location']}network_conf.h", "w") as f:

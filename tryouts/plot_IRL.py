@@ -76,7 +76,7 @@ def plot_IRL(folder):
     # Add grid and legend
     for ax in axs:
         ax.grid()
-        ax.legend()
+        # ax.legend()
     fig.tight_layout()
 
     plt.show()

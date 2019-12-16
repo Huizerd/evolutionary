@@ -21,13 +21,13 @@ def compare_parameters(folder1, folder2, filter=False, pareto=False):
     # Optional (Pareto) filter
     if filter:
         if pareto:
-            filter1 = np.load(folder1 / "mask.npy")
-            filter2 = np.load(folder2 / "mask.npy")
+            filter1 = np.load(folder1 / "mask_pareto.npy")
+            filter2 = np.load(folder2 / "mask_pareto.npy")
             files1 = np.array(files1)[filter1].tolist()
             files2 = np.array(files2)[filter2].tolist()
         else:
-            filter1 = np.load(folder1 / "mask_pareto.npy")
-            filter2 = np.load(folder2 / "mask_pareto.npy")
+            filter1 = np.load(folder1 / "mask.npy")
+            filter2 = np.load(folder2 / "mask.npy")
             files1 = np.array(files1)[filter1].tolist()
             files2 = np.array(files2)[filter2].tolist()
 
