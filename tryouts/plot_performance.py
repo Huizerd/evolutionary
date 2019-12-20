@@ -286,7 +286,7 @@ def plot_performance(folder, parameters):
                 "id": j,
                 "x": 2.0,
                 "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
-                "color": f"black!{100 - 2 * rates['mean_time'][k]}",
+                "color": f"black!{100 - 3.333 * rates['mean_time'][k]}",
             },
             ignore_index=True,
         )
@@ -298,7 +298,7 @@ def plot_performance(folder, parameters):
             "id": network.fc2.weight.shape[1],
             "x": 4.0,
             "y": 0.0,
-            "color": f"black!{100 - 2 * rates['mean_time'][k]}",
+            "color": f"black!{100 - 3.333 * rates['mean_time'][k]}",
         },
         ignore_index=True,
     )
