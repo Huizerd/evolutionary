@@ -10,9 +10,6 @@ venv/
 # Compiled stuff
 __pycache__/
 
-# Silly try-out scripts
-tryouts/
-
 # Logs
 logs/
 logs_gcp/

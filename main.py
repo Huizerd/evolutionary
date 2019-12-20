@@ -1,3 +1,5 @@
+#! usr/bin/env python
+
 import argparse
 import time
 import multiprocessing
@@ -12,20 +14,22 @@ import yaml
 import numpy as np
 import pandas as pd
 from deap import base, creator, tools
+from deap.benchmarks.tools import convergence, hypervolume
 
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
-from evolutionary.utils.model_to_text import model_to_text
-from evolutionary.visualize.vis_comparison import vis_comparison
+from evolutionary.utils.model_to_header import model_to_header
+from evolutionary.utils.utils import randomize_env
 from evolutionary.visualize.vis_network import vis_network
 from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
 from evolutionary.visualize.vis_steadystate import vis_steadystate
-from evolutionary.visualize.vis_sensitivity import vis_sensitivity
-from evolutionary.visualize.vis_out_dynamics import vis_out_dynamics
-from evolutionary.visualize.vis_statistics import vis_statistics
-from evolutionary.visualize.vis_population import vis_population, vis_relevant
+from evolutionary.visualize.vis_sensitivity import (
+    vis_sensitivity_complete,
+    vis_sensitivity_complete_4m,
+)
+from evolutionary.visualize.vis_population import vis_relevant
 
 
 # Suppress scientific notation
@@ -35,38 +39,30 @@ np.set_printoptions(suppress=True)
 def main(config, verbose):
     # Don't bother with determinism since tournament is stochastic!
 
+    # Set last time to start time
+    last_time = start_time
+
     # MP
-    # Detect GCP or local
-    if multiprocessing.cpu_count() > 8:
-        processes = multiprocessing.cpu_count() - 4
-        cloud = True
-    else:
-        processes = multiprocessing.cpu_count() - 2
-        cloud = False
+    processes = multiprocessing.cpu_count() // 2
     pool = multiprocessing.Pool(processes=processes)
 
     # Build network
     network = build_network_partial(config)
 
-    # And environment
-    env = build_environment(config)
+    # Build environments and randomize
+    envs = [build_environment(config) for _ in config["env"]["h0"]]
+    for env in envs:
+        randomize_env(env, config)
 
     # Objectives
-    # All possible objectives: air time, time to land, final height, final offset,
-    # final offset from 5 m, final velocity, unsigned divergence, signed divergence,
-    # total spikes (to minimize energy)
+    # Time to land, final height, final velocity, spikes per second
     valid_objectives = [
-        "air time",
         "time to land",
+        "time to land scaled",
         "final height",
-        "final offset",
-        "final offset 5m",
         "final velocity",
         "final velocity squared",
-        "unsigned divergence",
-        "signed divergence",
         "spikes",
-        "dummy",
     ]
     assert (
         len(config["evo"]["objectives"]) >= 3
@@ -77,6 +73,11 @@ def main(config, verbose):
     assert all(
         [obj in valid_objectives for obj in config["evo"]["objectives"]]
     ), "Invalid objective"
+
+    # Optimal front and reference point for hypervolume
+    optimal_front = config["evo"]["obj optimal"]
+    hyperref = config["evo"]["obj worst"]
+    optim_performance = []
 
     # Set up DEAP
     creator.create("Fitness", base.Fitness, weights=config["evo"]["obj weights"])
@@ -91,7 +92,7 @@ def main(config, verbose):
     )
     toolbox.register(
         "evaluate",
-        partial(evaluate, valid_objectives, config, env, config["env"]["h0"]),
+        partial(evaluate, valid_objectives, config, envs, config["env"]["h0"]),
     )
     toolbox.register("mate", crossover_none)
     toolbox.register(
@@ -108,10 +109,10 @@ def main(config, verbose):
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
     stats.register("avg", np.mean, axis=0)
+    stats.register("median", np.median, axis=0)
     stats.register("std", np.std, axis=0)
     stats.register("min", np.min, axis=0)
     stats.register("max", np.max, axis=0)
-    stats.register("median", np.median, axis=0)
 
     logbook = tools.Logbook()
     logbook.header = ("gen", "evals", "avg", "median", "std", "min", "max")
@@ -122,58 +123,55 @@ def main(config, verbose):
     population = toolbox.population(n=config["evo"]["pop size"])
     hof = tools.ParetoFront()  # hall of fame!
 
-    # Evaluate population
+    # Evaluate initial population
     fitnesses = toolbox.map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
 
-    # This is just to assign the crowding distance to the individuals,
-    # no actual selection is done
+    # This is just to assign the crowding distance (needed for selTournamentDCD())
+    # to the individuals, no actual selection is done
     population = toolbox.select(population, len(population))
+
+    # Update hall of fame
+    hof.update(population)
 
     # Log first record
     record = stats.compile(population)
     logbook.record(
         gen=0, evals=len(population), **{k: v.round(2) for k, v in record.items()}
     )
-    print(logbook.stream)
 
-    # Update hall of fame
-    hof.update(population)
+    # Log convergence (of first front) and hypervolume
+    pareto_fronts = tools.sortNondominated(population, len(population))
+    current_time = time.time()
+    minutes = (current_time - last_time) / 60
+    last_time = time.time()
+    time_past = (current_time - start_time) / 60
+    conv = convergence(pareto_fronts[0], optimal_front)
+    hyper = hypervolume(pareto_fronts[0], hyperref)
+    optim_performance.append([0, time_past, minutes, conv, hyper])
+    print(
+        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+    )
 
     if verbose:
-        # Plot population fitness and its relevant part
-        # Doesn't work in the cloud for some reason
-        last_pop = []
-        last_rel = []
-        if not cloud:
-            for dims in config["evo"]["plot 3D"]:
-                last_pop.append(
-                    vis_population(
-                        population,
-                        hof,
-                        config["evo"]["objectives"],
-                        dims,
-                        verbose=verbose,
-                    )
-                )
-        for dims in config["evo"]["plot 2D"]:
-            last_rel.append(
+        # Plot relevant part of population fitness
+        last_fig = []
+        for dims in config["evo"]["plot"]:
+            last_fig.append(
                 vis_relevant(
                     population, hof, config["evo"]["objectives"], dims, verbose=verbose
                 )
             )
 
-        # Create folders for parameters
+        # Create folders for parameters of individuals
+        # Only save hall of fame
         os.makedirs(f"{config['log location']}hof_000/")
 
         # And log the initial performance
         # Figures
-        if not cloud:
-            for i, last in enumerate(last_pop):
-                last[0].savefig(f"{config['fig location']}population{i}_000.png")
-        for i, last in enumerate(last_rel):
-            if last is not None:
+        for i, last in enumerate(last_fig):
+            if last[2]:
                 last[0].savefig(f"{config['fig location']}relevant{i}_000.png")
         # Parameters
         for i, ind in enumerate(hof):
@@ -184,22 +182,29 @@ def main(config, verbose):
         # Fitnesses
         pd.DataFrame(
             [ind.fitness.values for ind in hof], columns=config["evo"]["objectives"]
-        ).to_csv(
-            f"{config['log location']}hof_000/fitnesses.txt", index=False, sep="\t"
-        )
+        ).to_csv(f"{config['log location']}hof_000/fitnesses.csv", index=False, sep=",")
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
-        # Offspring: Pareto front + best of the rest
+        # Randomize environments (in-place) for this generation
+        # Each individual in a generation experiences the same environments,
+        # but re-seeding per individual is not done to prevent identically-performing
+        # agents (and thus thousands of HOFs, due to stepping nature of SNNs)
+        for env in envs:
+            randomize_env(env, config)
+
+        # Selection: Pareto front + best of the rest
         pareto_fronts = tools.sortNondominated(population, len(population))
         selection = pareto_fronts[0]
         others = list(chain(*pareto_fronts[1:]))
+        # We need a multiple of 4 for selTournamentDCD()
         if len(others) % 4:
             others.extend(random.sample(selection, 4 - (len(others) % 4)))
         selection.extend(tools.selTournamentDCD(others, len(others)))
 
         # Get offspring: mutate selection
-        # TODO: maybe add crossover
+        # TODO: maybe add crossover? Which is usually done binary,
+        #  so maybe not that useful..
         offspring = [
             toolbox.mutate(toolbox.clone(ind)) for ind in selection[: len(population)]
         ]
@@ -217,40 +222,40 @@ def main(config, verbose):
 
         # Update the hall of fame with the offspring,
         # so we get the best of population + offspring in there
-        # Population again since we re-evaluated it
+        # Also include population, because we re-evaluated it
         hof.update(population + offspring)
 
         # Select the population for the next generation
         # from the last generation and its offspring
         population = toolbox.select(population + offspring, config["evo"]["pop size"])
 
-        # Log stuff
+        # Log stuff, but don't print!
         record = stats.compile(population)
         logbook.record(
             gen=gen,
             evals=len(offspring) + len(population),
             **{k: v.round(2) for k, v in record.items()},
         )
-        print(logbook.stream)
+
+        # Log convergence (of first front) and hypervolume
+        pareto_fronts = tools.sortNondominated(population, len(population))
+        current_time = time.time()
+        minutes = (current_time - last_time) / 60
+        last_time = time.time()
+        time_past = (current_time - start_time) / 60
+        conv = convergence(pareto_fronts[0], optimal_front)
+        hyper = hypervolume(pareto_fronts[0], hyperref)
+        optim_performance.append([gen, time_past, minutes, conv, hyper])
+        print(
+            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+        )
 
         if verbose:
-            # Plot population fitness and the relevant part of it
-            if not cloud:
-                for i, last, dims in zip(
-                    range(len(last_pop)), last_pop, config["evo"]["plot 3D"]
-                ):
-                    last_pop[i] = vis_population(
-                        population,
-                        hof,
-                        config["evo"]["objectives"],
-                        dims,
-                        last=last,
-                        verbose=verbose,
-                    )
+            # Plot relevant part of population fitness
             for i, last, dims in zip(
-                range(len(last_rel)), last_rel, config["evo"]["plot 2D"]
+                range(len(last_fig)), last_fig, config["evo"]["plot"]
             ):
-                last_rel[i] = vis_relevant(
+                last_fig[i] = vis_relevant(
                     population,
                     hof,
                     config["evo"]["objectives"],
@@ -266,13 +271,8 @@ def main(config, verbose):
                     os.makedirs(f"{config['log location']}hof_{gen:03}/")
 
                 # Save population figure
-                if not cloud:
-                    for i, last in enumerate(last_pop):
-                        last[0].savefig(
-                            f"{config['fig location']}population{i}_{gen:03}.png"
-                        )
-                for i, last in enumerate(last_rel):
-                    if last is not None:
+                for i, last in enumerate(last_fig):
+                    if last[2]:
                         last[0].savefig(
                             f"{config['fig location']}relevant{i}_{gen:03}.png"
                         )
@@ -289,16 +289,33 @@ def main(config, verbose):
                     [ind.fitness.values for ind in hof],
                     columns=config["evo"]["objectives"],
                 ).to_csv(
-                    f"{config['log location']}hof_{gen:03}/fitnesses.txt",
+                    f"{config['log location']}hof_{gen:03}/fitnesses.csv",
                     index=False,
-                    sep="\t",
+                    sep=",",
                 )
 
                 # Save logbook
                 pd.DataFrame(logbook).to_csv(
-                    f"{config['log location']}logbook.txt", index=False, sep="\t"
+                    f"{config['log location']}logbook.csv", index=False, sep=","
                 )
 
+                # Save optimization performance
+                pd.DataFrame(
+                    optim_performance,
+                    columns=[
+                        "gen",
+                        "time past",
+                        "minutes",
+                        "convergence",
+                        "hypervolume",
+                    ],
+                ).to_csv(
+                    f"{config['log location']}optim_performance.csv",
+                    index=False,
+                    sep=",",
+                )
+
+    # Close multiprocessing pool
     pool.close()
 
 
@@ -307,16 +324,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--mode",
-        choices=["train", "test", "compare", "analyze", "save"],
+        choices=["train", "test", "analyze", "analyze4m", "save"],
         default="train",
     )
-    parser.add_argument(
-        "--verbose", type=int, choices=[0, 1, 2, 3], default=2
-    )  # 3 for saving values, not yet implemented
+    parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
     parser.add_argument("--config", type=str, default=None)
     parser.add_argument("--tags", nargs="+", default=None)
     parser.add_argument("--parameters", type=str, default=None)
-    parser.add_argument("--comparison", type=str, default=None)
     args = vars(parser.parse_args())
 
     # Modes of execution
@@ -378,42 +392,15 @@ if __name__ == "__main__":
                 suffix += 1
             config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
+
+        # Visualize network parameters
         vis_network(config, args["parameters"], args["verbose"])
+        # Visualize landings and network activity
         vis_performance(config, args["parameters"], args["verbose"])
+        # Visualize response to a severe disturbance (to see how fast response is)
         vis_disturbance(config, args["parameters"], args["verbose"])
+        # Visualize steady-state output for certain inputs
         vis_steadystate(config, args["parameters"], args["verbose"])
-
-    # Comparison
-    elif args["mode"] == "compare":
-        # Load config files
-        assert args["comparison"] is not None, "Comparison needs a yaml file"
-        with open(args["comparison"], "r") as cf:
-            comparison = yaml.full_load(cf)
-            configs = []
-            for conf in comparison["configs"]:
-                with open(conf, "r") as ccf:
-                    configs.append(yaml.full_load(ccf))
-
-        # Check if we supplied tags for identification
-        assert args["tags"] is not None, "Provide tags for identifying a run!"
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Create folders, add suffix if necessary
-            comparison["log location"] += "+".join(args["tags"]) + "+"
-            suffix = 0
-            while os.path.exists(comparison["log location"] + str(suffix) + "/"):
-                suffix += 1
-            comparison["log location"] += str(suffix) + "/"
-            os.makedirs(comparison["log location"])
-
-            # Save comparison file and tags there
-            copyfile(args["comparison"], comparison["log location"] + "comparison.yaml")
-            with open(comparison["log location"] + "tags.txt", "w") as f:
-                f.write(" ".join(args["tags"]))
-
-        # Perform comparison
-        vis_comparison(configs, comparison, args["verbose"])
 
     # Analysis
     elif args["mode"] == "analyze":
@@ -443,12 +430,39 @@ if __name__ == "__main__":
             config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
 
-        # Visualize output dynamics
-        vis_out_dynamics(config, args["parameters"], args["verbose"])
         # Perform sensitivity analysis
-        vis_sensitivity(config, args["parameters"], args["verbose"])
-        # Perform statistical analysis
-        vis_statistics(config, args["parameters"], args["verbose"])
+        vis_sensitivity_complete(config, args["parameters"], args["verbose"])
+
+    # Analysis from 4m
+    elif args["mode"] == "analyze4m":
+        # Read config file
+        assert args["config"] is not None, "Analysis needs a configuration file"
+        with open(args["config"], "r") as cf:
+            config = yaml.full_load(cf)
+
+        # Check if folder of parameters was supplied
+        assert os.path.isdir(
+            args["parameters"]
+        ), "Provide a folder of parameters for analysis!"
+
+        # Don't create/save in case of debugging
+        if args["verbose"]:
+            # Set log location to the one supplied
+            folder_id = args["parameters"].split("/")[-2]
+            config["log location"] = (
+                "/".join(args["config"].split("/")[:-1])
+                + "/analysis4m+"
+                + folder_id
+                + "+"
+            )
+            suffix = 0
+            while os.path.exists(config["log location"] + str(suffix) + "/"):
+                suffix += 1
+            config["log location"] += str(suffix) + "/"
+            os.makedirs(config["log location"])
+
+        # Perform sensitivity analysis
+        vis_sensitivity_complete_4m(config, args["parameters"], args["verbose"])
 
     # Save model to text
     elif args["mode"] == "save":
@@ -474,4 +488,6 @@ if __name__ == "__main__":
                 suffix += 1
             config["log location"] += str(suffix) + "/"
             os.makedirs(config["log location"])
-        model_to_text(config, args["parameters"], args["verbose"])
+
+        # Export model to text for use IRL
+        model_to_header(config, args["parameters"], args["verbose"])

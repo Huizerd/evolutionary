@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 
 
@@ -52,3 +53,13 @@ def is_pareto_efficient(costs):
             )  # keep any point with a lower cost
             is_efficient[i] = True  # and keep self
     return is_efficient
+
+
+def sigmoid(x, y_min, y_step, x_mid, steepness):
+    y = torch.where(
+        x >= 0,
+        y_step / (1 + torch.exp(-steepness * (x - x_mid))) + y_min,
+        (y_step * torch.exp(steepness * x)) / (1 + torch.exp(steepness * (x - x_mid)))
+        + y_min,
+    )
+    return y

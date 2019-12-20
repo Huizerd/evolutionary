@@ -15,3 +15,5 @@ Code is formatted with [Black](https://github.com/psf/black) using a pre-commit 
 ```bash
 $ pre-commit install
 ```
+
+Also note that `gcc`, `g++`, `python3-dev` and `build-essential` are needed to compile C/C++ extensions that speed up DEAP, so make sure these are installed on your system. Also, install `python3-matplotlib` to be able to plot 3D figures.

@@ -47,13 +47,32 @@ class SNN(SNNNetwork):
         self.decoding = config["net"]["decoding"]
         self.out_scale = config["net"]["output scale"]
         self.out_offset = config["net"]["output offset"]
-        self.output_bounds = config["env"]["g bounds"]
+        self.in_bound = config["net"]["input bound"]
+        self.in_scale = config["net"]["input scale"]
+        self.in_size = config["net"]["input size"]
+        self.in_sigma = (
+            config["net"]["input bound"] * 2 / (config["net"]["input size"] - 1)
+        )
+        self.in_centers = (
+            torch.pow(
+                torch.linspace(
+                    -config["net"]["input bound"],
+                    config["net"]["input bound"],
+                    config["net"]["input size"],
+                ),
+                3,
+            )
+            / (config["net"]["input bound"] ** 2)
+        ).view(1, 1, config["net"]["input size"])
+        self.out_bounds = config["env"]["g bounds"]
 
         # Input/output layer size (related to encoding/decoding)
         if self.encoding == "both":
             inputs = 4
         elif self.encoding == "divergence":
             inputs = 2
+        elif self.encoding == "place":
+            inputs = config["net"]["input size"]
         else:
             raise ValueError("Invalid encoding")
         if self.decoding == "single trace":
@@ -133,22 +152,68 @@ class SNN(SNNNetwork):
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(-3.0, 3.0)
-                elif hasattr(child, gene) and gene in [
-                    "alpha_v",
-                    "alpha_t",
-                    "alpha_thresh",
-                ]:
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" in types
+                    and "uniform" not in types
+                ):
                     param = getattr(child, gene)
-                    if torch.rand(1).item() < mutation_rate:
+                    param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.0, 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" in types
+                    and "uniform" in types
+                ):
+                    param = getattr(child, gene)
+                    mutation = torch.empty_like(param).uniform_(0.0, 2.0)
+                    mask = torch.rand_like(param) < mutation_rate
+                    param.masked_scatter_(mask, mutation)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" not in types
+                ):
+                    param = getattr(child, gene)
+                    if torch.rand(()) < mutation_rate:
                         # Same for all neurons in layer!
                         # Works because a sensible range for all alphas is [0, 2]
-                        param.uniform_(0.0, 2.0)
-                elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
+                        param.fill_(torch.rand(()) * 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" in types
+                    and "uniform" not in types
+                ):
                     param = getattr(child, gene)
-                    if torch.rand(1).item() < mutation_rate:
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" in types
+                    and "uniform" in types
+                ):
+                    param = getattr(child, gene)
+                    mutation = torch.empty_like(param).uniform_(0.0, 1.0)
+                    mask = torch.rand_like(param) < mutation_rate
+                    param.masked_scatter_(mask, mutation)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" not in types
+                ):
+                    param = getattr(child, gene)
+                    if torch.rand(()) < mutation_rate:
                         # Same for all neurons in layer!
                         # Works because all taus are [0, 1]
-                        param.uniform_(0.0, 1.0)
+                        param.fill_(torch.rand(()))
                 elif (
                     hasattr(child, gene)
                     and gene == "thresh"
@@ -156,7 +221,7 @@ class SNN(SNNNetwork):
                 ):
                     # Only mutate threshold for non-adaptive neuron
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.4, 0.4)) * (
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 1.0)
@@ -176,11 +241,21 @@ class SNN(SNNNetwork):
             self.input[..., :1].clamp_(min=0.0)
             self.input[..., 1:].clamp_(max=0.0)
             return self.input.abs()
+        elif self.encoding == "place":
+            # Don't repeat here, but in place centers (more efficient)
+            # Works, because we take only divergence, so input has shape (1, 1, 1) and
+            # in_centers has shape (1, 1, centers)
+            self.input = self.in_scale * torch.exp(
+                -(input[..., 0].clamp_(-self.in_bound, self.in_bound) - self.in_centers)
+                ** 2
+                / (2.0 * self.in_sigma ** 2)
+            )
+            return self.input
 
     def _scale_output(self, output):
-        return self.output_bounds[0] + (
-            self.output_bounds[1] - self.output_bounds[0]
-        ) * (output / self.out_scale + self.out_offset)
+        return self.out_bounds[0] + (self.out_bounds[1] - self.out_bounds[0]) * (
+            output / self.out_scale + self.out_offset
+        )
 
     def _decode(self, out_trace):
         # Scale single trace
@@ -190,20 +265,19 @@ class SNN(SNNNetwork):
         # Maximum of two traces
         elif self.decoding == "max trace":
             trace = out_trace.view(-1)
-            output = trace * torch.tensor(self.output_bounds)
+            output = trace * torch.tensor(self.out_bounds)
             return output[trace.argmax()].view(-1)
         # Sum of two traces (one for positive, one for negative)
         elif self.decoding == "sum trace":
             trace = out_trace.view(-1)
-            output = (trace - trace.flip(0)).abs() * torch.tensor(self.output_bounds)
+            output = (trace - trace.flip(0)).abs() * torch.tensor(self.out_bounds)
             return output[trace.argmax()].view(-1)
         # Weighted average of five traces
         elif self.decoding == "weighted trace":
             trace = out_trace.view(-1)
             if trace.sum() > 0.0:
                 output = (
-                    trace
-                    * torch.linspace(self.output_bounds[0], -self.output_bounds[0], 5)
+                    trace * torch.linspace(self.out_bounds[0], -self.out_bounds[0], 5)
                 ).sum() / trace.sum()
                 return output.view(-1)
             else:
