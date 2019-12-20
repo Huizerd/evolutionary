@@ -55,7 +55,7 @@ def filter_analysis(folder):
             "75th_s",
             "id",
         ],
-    ).to_csv(folder / "sensitivity_filtered.txt", index=False, sep="\t")
+    ).to_csv(folder / "sensitivity_filtered.csv", index=False, sep=",")
     pd.DataFrame(
         np.concatenate(
             [
@@ -81,7 +81,7 @@ def filter_analysis(folder):
             "75th_s",
             "id",
         ],
-    ).to_csv(folder / "sensitivity_pareto.txt", index=False, sep="\t")
+    ).to_csv(folder / "sensitivity_pareto.csv", index=False, sep=",")
 
 
 if __name__ == "__main__":

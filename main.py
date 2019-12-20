@@ -182,9 +182,7 @@ def main(config, verbose):
         # Fitnesses
         pd.DataFrame(
             [ind.fitness.values for ind in hof], columns=config["evo"]["objectives"]
-        ).to_csv(
-            f"{config['log location']}hof_000/fitnesses.txt", index=False, sep="\t"
-        )
+        ).to_csv(f"{config['log location']}hof_000/fitnesses.csv", index=False, sep=",")
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
@@ -291,14 +289,14 @@ def main(config, verbose):
                     [ind.fitness.values for ind in hof],
                     columns=config["evo"]["objectives"],
                 ).to_csv(
-                    f"{config['log location']}hof_{gen:03}/fitnesses.txt",
+                    f"{config['log location']}hof_{gen:03}/fitnesses.csv",
                     index=False,
-                    sep="\t",
+                    sep=",",
                 )
 
                 # Save logbook
                 pd.DataFrame(logbook).to_csv(
-                    f"{config['log location']}logbook.txt", index=False, sep="\t"
+                    f"{config['log location']}logbook.csv", index=False, sep=","
                 )
 
                 # Save optimization performance
@@ -312,9 +310,9 @@ def main(config, verbose):
                         "hypervolume",
                     ],
                 ).to_csv(
-                    f"{config['log location']}optim_performance.txt",
+                    f"{config['log location']}optim_performance.csv",
                     index=False,
-                    sep="\t",
+                    sep=",",
                 )
 
     # Close multiprocessing pool

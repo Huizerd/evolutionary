@@ -2,21 +2,25 @@ import argparse
 import glob
 
 import pandas as pd
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+
+mpl.rcParams["lines.linewidth"] = 0.8
 
 
 def plot_IRL(folder):
     # Find files
-    files = glob.glob(folder + "*.csv")
+    files = glob.glob(folder + "2019*.csv")
 
     # Create plot
-    fig, axs = plt.subplots(5, 1, sharex=True, figsize=(10, 10))
+    fig, axs = plt.subplots(6, 1, sharex=True, figsize=(10, 10))
     axs[0].set_ylabel("height [m]")
     axs[1].set_ylabel("velocity [m/s]")
-    axs[2].set_ylabel("divergence [1/s]")
-    axs[3].set_ylabel("divergence dot [1/s2]")
-    axs[4].set_ylabel("thrust [m/s2]")
-    axs[4].set_xlabel("time [s]")
+    axs[2].set_ylabel("thrust [m/s2]")
+    axs[3].set_ylabel("divergence [1/s]")
+    axs[4].set_ylabel("divergence dot [1/s2]")
+    axs[5].set_ylabel("spikes [?]")
+    axs[5].set_xlabel("time [s]")
 
     # Go over files
     i = 0
@@ -41,34 +45,46 @@ def plot_IRL(folder):
                     "div_gt",
                     "divdot",
                     "divdot_gt",
-                    "acc_z",
-                    "acc_lp",
                     "thrust",
+                    "spike_count",
                 ],
             ]
-            plot_data.reset_index(inplace=True)
+            plot_data.reset_index(drop=True, inplace=True)
             plot_data["time"] -= plot_data.loc[0, "time"]
+            plot_data["spike_step"] = plot_data["spike_count"].diff()
+            plot_data["spike_step"][0] = 0
+            plot_data["spike_step"] = plot_data["spike_step"].astype(int)
+            # Earlier "landing"
+            stop_alt = (-plot_data["pos_z"] < 0.1).idxmax()
+            plot_data = plot_data.iloc[:stop_alt, :]
 
             # Plot data
-            axs[0].plot(plot_data["time"], -plot_data["pos_z"], label=f"run {i}")
-            axs[1].plot(plot_data["time"], -plot_data["vel_z"], label=f"run {i}")
-            axs[2].plot(plot_data["time"], plot_data["div"], label=f"run {i}")
-            axs[2].plot(
-                plot_data["time"], plot_data["div_gt"], "-.", label=f"run {i} GT"
-            )
-            axs[3].plot(plot_data["time"], plot_data["divdot"], label=f"run {i}")
+            # Height
+            axs[0].plot(plot_data["time"], -plot_data["pos_z"], "C0", label=f"run {i}")
+            # Velocity
+            axs[1].plot(plot_data["time"], -plot_data["vel_z"], "C0", label=f"run {i}")
+            # Thrust
+            axs[2].plot(plot_data["time"], plot_data["thrust"], "C0", label=f"run {i}")
+            # Divergence
+            axs[3].plot(plot_data["time"], plot_data["div"], "C0", label=f"run {i}")
             axs[3].plot(
-                plot_data["time"], plot_data["divdot_gt"], "-.", label=f"run {i} GT"
+                plot_data["time"], plot_data["div_gt"], "C1", label=f"run {i} GT"
             )
+            # Divergence dot
+            axs[4].plot(plot_data["time"], plot_data["divdot"], "C0", label=f"run {i}")
             axs[4].plot(
-                plot_data["time"], -plot_data["acc_z"], ":", label=f"run {i} raw"
+                plot_data["time"], plot_data["divdot_gt"], "C1", label=f"run {i} GT"
             )
-            axs[4].plot(
-                plot_data["time"], -plot_data["acc_lp"], "--", label=f"run {i} low-pass"
+            # Spikes
+            axs[5].plot(
+                plot_data["time"],
+                plot_data["spike_count"] / plot_data["time"],
+                "C0",
+                label=f"run {i}",
             )
-            axs[4].plot(
-                plot_data["time"], plot_data["thrust"], label=f"run {i} setpoint"
-            )
+
+            # Save data
+            plot_data.to_csv(str(folder) + f"run{i}.csv", index=False, sep=",")
 
             # Increment counter
             i += 1
@@ -76,7 +92,6 @@ def plot_IRL(folder):
     # Add grid and legend
     for ax in axs:
         ax.grid()
-        # ax.legend()
     fig.tight_layout()
 
     plt.show()

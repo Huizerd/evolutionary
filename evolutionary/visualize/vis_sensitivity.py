@@ -20,7 +20,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
     # Save parameters with indices as DataFrame for later identification of good controllers
     pd.DataFrame(
         [(i, p) for i, p in zip(ids, parameters)], columns=["id", "location"]
-    ).to_csv(f"{config['log location']}ids.txt", index=False, sep="\t")
+    ).to_csv(f"{config['log location']}ids.csv", index=False, sep=",")
 
     # Build environment
     env = build_environment(config)
@@ -86,7 +86,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
     if verbose:
         pd.DataFrame(
             stds, columns=["time to land", "final height", "final velocity", "spikes"]
-        ).to_csv(f"{config['log location']}sensitivity_stds.txt", index=False, sep="\t")
+        ).to_csv(f"{config['log location']}sensitivity_stds.csv", index=False, sep=",")
         pd.DataFrame(
             np.concatenate(
                 [
@@ -112,7 +112,7 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
                 "75th_s",
                 "id",
             ],
-        ).to_csv(f"{config['log location']}sensitivity.txt", index=False, sep="\t")
+        ).to_csv(f"{config['log location']}sensitivity.csv", index=False, sep=",")
         # Also save raw performance as npz
         np.save(f"{config['log location']}raw_performance", performance)
 
@@ -206,7 +206,7 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
     # Save parameters with indices as DataFrame for later identification of good controllers
     pd.DataFrame(
         [(i, p) for i, p in zip(ids, parameters)], columns=["id", "location"]
-    ).to_csv(f"{config['log location']}ids.txt", index=False, sep="\t")
+    ).to_csv(f"{config['log location']}ids.csv", index=False, sep=",")
 
     # Build environment
     env = build_environment(config)
@@ -272,7 +272,7 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
     if verbose:
         pd.DataFrame(
             stds, columns=["time to land", "final height", "final velocity", "spikes"]
-        ).to_csv(f"{config['log location']}sensitivity_stds.txt", index=False, sep="\t")
+        ).to_csv(f"{config['log location']}sensitivity_stds.csv", index=False, sep=",")
         pd.DataFrame(
             np.concatenate(
                 [
@@ -298,7 +298,7 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
                 "75th_s",
                 "id",
             ],
-        ).to_csv(f"{config['log location']}sensitivity.txt", index=False, sep="\t")
+        ).to_csv(f"{config['log location']}sensitivity.csv", index=False, sep=",")
         # Also save raw performance as npz
         np.save(f"{config['log location']}raw_performance", performance)
 
