@@ -13,32 +13,36 @@ class SNN(SNNNetwork):
         # Trace parameters for input neurons don't matter, unused anyway
         n_in_dynamics = [
             config["net"]["dt"],
-            config["net"]["alpha t"][0],
-            config["net"]["tau t"][0],
+            torch.tensor(config["net"]["alpha t"][0][0])
+            if isinstance(config["net"]["alpha t"][0], list)
+            else torch.tensor(config["net"]["alpha t"][0]),
+            torch.tensor(config["net"]["tau t"][0][0])
+            if isinstance(config["net"]["tau t"][0], list)
+            else torch.tensor(config["net"]["tau t"][0]),
         ]
         n_hid_dynamics = [
             config["net"]["thresh"][0],
             config["net"]["v rest"][0],
-            config["net"]["alpha v"][0],
-            config["net"]["alpha t"][0],
+            torch.tensor(config["net"]["alpha v"][0]),
+            torch.tensor(config["net"]["alpha t"][0]),
             config["net"]["dt"],
             config["net"]["refrac"][0],
-            config["net"]["tau v"][0],
-            config["net"]["tau t"][0],
-            config["net"]["alpha thresh"][0],
-            config["net"]["tau thresh"][0],
+            torch.tensor(config["net"]["tau v"][0]),
+            torch.tensor(config["net"]["tau t"][0]),
+            torch.tensor(config["net"]["alpha thresh"][0]),
+            torch.tensor(config["net"]["tau thresh"][0]),
         ]
         n_out_dynamics = [
             config["net"]["thresh"][1],
             config["net"]["v rest"][1],
-            config["net"]["alpha v"][1],
-            config["net"]["alpha t"][1],
+            torch.tensor(config["net"]["alpha v"][1]),
+            torch.tensor(config["net"]["alpha t"][1]),
             config["net"]["dt"],
             config["net"]["refrac"][1],
-            config["net"]["tau v"][1],
-            config["net"]["tau t"][1],
-            config["net"]["alpha thresh"][0],
-            config["net"]["tau thresh"][0],
+            torch.tensor(config["net"]["tau v"][1]),
+            torch.tensor(config["net"]["tau t"][1]),
+            torch.tensor(config["net"]["alpha thresh"][1]),
+            torch.tensor(config["net"]["tau thresh"][1]),
         ]
         c_dynamics = [1, config["net"]["dt"], config["net"]["delay"]]
 
