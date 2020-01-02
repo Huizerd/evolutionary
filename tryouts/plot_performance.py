@@ -241,15 +241,17 @@ def plot_performance(folder, parameters):
     # Write network to tikz-network-compatible file
     # Edges
     # First layer
-    edges_0 = pd.DataFrame(columns=["u", "v", "lw"])
+    edges_0 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
     for i in range(network.fc1.weight.shape[0]):
         for j in range(-network.fc1.weight.shape[1], 0):
             edges_0 = edges_0.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
     edges_0["u"] = edges_0["u"].astype(int)
     edges_0["v"] = edges_0["v"].astype(int)
-    edges_0["lw"] = network.fc1.weight.view(-1).tolist()
+    edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
+    edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "cyan", "magenta")
+    edges_0["lw"] = edges_0["lw_raw"].abs()
     # Second layer
-    edges_1 = pd.DataFrame(columns=["u", "v", "lw"])
+    edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
     for i in range(network.fc2.weight.shape[0]):
         for j in range(network.fc2.weight.shape[1]):
             edges_1 = edges_1.append(
@@ -258,7 +260,9 @@ def plot_performance(folder, parameters):
             )
     edges_1["u"] = edges_1["u"].astype(int)
     edges_1["v"] = edges_1["v"].astype(int)
-    edges_1["lw"] = network.fc2.weight.view(-1).tolist()
+    edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
+    edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "cyan", "magenta")
+    edges_1["lw"] = edges_1["lw_raw"].abs()
     edges = pd.concat([edges_0, edges_1], 0)
     edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
 
@@ -274,7 +278,7 @@ def plot_performance(folder, parameters):
                 "y": network.fc1.weight.shape[1] / 4
                 - 0.25
                 - 0.5 * (network.fc1.weight.shape[1] + j),
-                "color": "black",
+                "color": "cyan",
             },
             ignore_index=True,
         )
@@ -286,7 +290,7 @@ def plot_performance(folder, parameters):
                 "id": j,
                 "x": 2.0,
                 "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
-                "color": f"black!{100 - 3.333 * rates['mean_time'][k]}",
+                "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
             },
             ignore_index=True,
         )
@@ -298,7 +302,7 @@ def plot_performance(folder, parameters):
             "id": network.fc2.weight.shape[1],
             "x": 4.0,
             "y": 0.0,
-            "color": f"black!{100 - 3.333 * rates['mean_time'][k]}",
+            "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
         },
         ignore_index=True,
     )
