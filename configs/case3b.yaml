@@ -1,7 +1,7 @@
-#### Case 6b ####
-# - SNN
-# - alphas and taus per layer set to value roughly optimal
-# - weights evolved
+#### Case 3b ####
+# - SNN with 1 hidden neuron
+# - alphas and taus per neuron
+# - all parameters evolved
 # - optimization for spikes
 # - divergence + derivative as input
 
@@ -11,8 +11,8 @@ evo:
   gens: 400
   pop size: 100
   mutation rate: 0.3
-  genes: [weight]
-  types: []
+  genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
+  types: [all]
   obj weights: [-1.0, -1.0, -1.0, -1.0]
   obj optimal: [[1.0, 0.05, 0.0, 0.0]]
   obj worst: [100.0, 10.0, 10.0, 1000.0]
@@ -37,7 +37,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 20
+  hidden size: 1
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]

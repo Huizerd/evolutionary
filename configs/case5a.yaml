@@ -1,9 +1,9 @@
 #### Case 5a ####
 # - SNN
-# - alphas and taus per layer set to value below optimal
-# - weights and thresholds evolved
+# - alphas, taus and thresholds per neuron set to value below optimal
+# - weights evolved
 # - optimization for spikes
-# - divergence place cells as input
+# - divergence + derivative as input
 
 log location: logs/cases/
 log interval: 50
@@ -11,8 +11,8 @@ evo:
   gens: 400
   pop size: 100
   mutation rate: 0.3
-  genes: [weight, thresh]
-  types: []
+  genes: [weight]
+  types: [all]
   obj weights: [-1.0, -1.0, -1.0, -1.0]
   obj optimal: [[1.0, 0.05, 0.0, 0.0]]
   obj worst: [100.0, 10.0, 10.0, 1000.0]
@@ -55,5 +55,5 @@ net:
   input scale: 1.0  # only used for place encoding
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  encoding: place
+  encoding: both
   decoding: single trace

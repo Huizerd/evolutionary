@@ -3,7 +3,7 @@
 # - alphas and taus per neuron
 # - all parameters evolved
 # - optimization for spikes
-# - divergence + derivative as input
+# - divergence place cells as input
 
 log location: logs/cases/
 log interval: 50
@@ -55,5 +55,5 @@ net:
   input scale: 1.0  # only used for place encoding
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  encoding: both
+  encoding: place
   decoding: single trace
