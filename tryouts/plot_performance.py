@@ -248,7 +248,7 @@ def plot_performance(folder, parameters):
     edges_0["u"] = edges_0["u"].astype(int)
     edges_0["v"] = edges_0["v"].astype(int)
     edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
-    edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "cyan", "magenta")
+    edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "magenta", "cyan")
     edges_0["lw"] = edges_0["lw_raw"].abs()
     # Second layer
     edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
@@ -261,7 +261,7 @@ def plot_performance(folder, parameters):
     edges_1["u"] = edges_1["u"].astype(int)
     edges_1["v"] = edges_1["v"].astype(int)
     edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
-    edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "cyan", "magenta")
+    edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "magenta", "cyan")
     edges_1["lw"] = edges_1["lw_raw"].abs()
     edges = pd.concat([edges_0, edges_1], 0)
     edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
