@@ -45,7 +45,7 @@ def plot_performance(folder, parameters):
     fig_p, axs_p = plt.subplots(6, 1, sharex=True, figsize=(10, 10))
     axs_p[0].set_ylabel("height [m]")
     axs_p[1].set_ylabel("velocity [m/s]")
-    axs_p[2].set_ylabel("thrust [m/s2]")
+    axs_p[2].set_ylabel("thrust setpoint [g]")
     axs_p[3].set_ylabel("divergence [1/s]")
     axs_p[4].set_ylabel("divergence dot [1/s2]")
     axs_p[5].set_ylabel("spikes [?]")
@@ -72,6 +72,7 @@ def plot_performance(folder, parameters):
         spikes = 0
 
         # For plotting
+        action_list = []
         state_list = []
         obs_gt_list = []
         obs_list = []
@@ -88,6 +89,7 @@ def plot_performance(folder, parameters):
         )
 
         # Log performance
+        action_list.append(np.clip(env.action.copy(), *config["env"]["g bounds"]))
         state_list.append(env.state.copy())
         obs_gt_list.append(env.div_ph.copy())
         obs_list.append(obs.copy())
@@ -111,6 +113,7 @@ def plot_performance(folder, parameters):
             obs, _, done, _ = env.step(action)
 
             # Log performance
+            action_list.append(np.clip(env.action.copy(), *config["env"]["g bounds"]))
             state_list.append(env.state.copy())
             obs_gt_list.append(env.div_ph.copy())
             obs_list.append(obs.copy())
@@ -144,7 +147,7 @@ def plot_performance(folder, parameters):
         # Velocity
         axs_p[1].plot(time_list, np.array(state_list)[:, 1], "C0", label=f"run {i}")
         # Thrust
-        axs_p[2].plot(time_list, np.array(state_list)[:, 2], "C0", label=f"run {i}")
+        axs_p[2].plot(time_list, np.array(action_list), "C0", label=f"run {i}")
         # Divergence
         axs_p[3].plot(time_list, np.array(obs_list)[:, 0], "C0", label=f"run {i}")
         axs_p[3].plot(time_list, np.array(obs_gt_list)[:, 0], "C1", label=f"run {i} GT")
@@ -215,6 +218,7 @@ def plot_performance(folder, parameters):
                 "pos_z": np.array(state_list)[:, 0],
                 "vel_z": np.array(state_list)[:, 1],
                 "thrust": np.array(state_list)[:, 2],
+                "tsp": np.array(action_list),
                 "div": np.array(obs_list)[:, 0],
                 "div_gt": np.array(obs_gt_list)[:, 0],
                 "divdot": np.array(obs_list)[:, 1],
