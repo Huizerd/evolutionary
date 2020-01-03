@@ -137,7 +137,7 @@ def model_to_header(config, in_file, verbose=2):
         # Write network header file
         # Get data
         centers = network.in_centers.view(-1).tolist()
-        encoding_type = 1 if network.encoding == "place" else 0
+        encoding_type = 1 if "place" in network.encoding else 0
         decoding_scale = network.out_scale
         in_size = 2
         in_enc_size = network.neuron0.spikes.size(-1)

@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 
-# Combine and analyze results from train_cases_0-2_left.sh and train_cases_0-2_right.sh
+# Combine and analyze results from train_cases_0-1_left.sh and train_cases_0-1_right.sh
 # Check if cases directory exists (and if in correct folder)
 LOGDIR=logs/cases
 if [ -d "$LOGDIR" ]; then
@@ -37,17 +37,3 @@ python main.py \
 --mode analyze4m \
 --config "${LOGDIR}/analysis/case1/config.yaml" \
 --parameters "${LOGDIR}/analysis/case1/case1" &
-
-# Case 2
-# Create folder and copy data
-mkdir -p "${LOGDIR}/analysis/case2/case2"
-cp "${LOGDIR}/case2+left+0/config.yaml" "${LOGDIR}/analysis/case2/config.yaml"
-cp -a "${LOGDIR}/case2+left+0/hof_399" "${LOGDIR}/analysis/case2/case2/hof+left+0"
-cp -a "${LOGDIR}/case2+left+1/hof_399" "${LOGDIR}/analysis/case2/case2/hof+left+1"
-cp -a "${LOGDIR}/case2+right+0/hof_399" "${LOGDIR}/analysis/case2/case2/hof+right+0"
-cp -a "${LOGDIR}/case2+right+1/hof_399" "${LOGDIR}/analysis/case2/case2/hof+right+1"
-# Run analysis in background (since it only uses 1 core)
-python main.py \
---mode analyze4m \
---config "${LOGDIR}/analysis/case2/config.yaml" \
---parameters "${LOGDIR}/analysis/case2/case2" &

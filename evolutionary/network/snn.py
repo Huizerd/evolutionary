@@ -57,17 +57,25 @@ class SNN(SNNNetwork):
         self.in_sigma = (
             config["net"]["input bound"] * 2 / (config["net"]["input size"] - 1)
         )
-        self.in_centers = (
-            torch.pow(
-                torch.linspace(
-                    -config["net"]["input bound"],
-                    config["net"]["input bound"],
-                    config["net"]["input size"],
-                ),
-                3,
-            )
-            / (config["net"]["input bound"] ** 2)
-        ).view(1, 1, config["net"]["input size"])
+        if self.encoding == "place cubic":
+            self.in_centers = (
+                torch.pow(
+                    torch.linspace(
+                        -config["net"]["input bound"],
+                        config["net"]["input bound"],
+                        config["net"]["input size"],
+                    ),
+                    3,
+                )
+                / (config["net"]["input bound"] ** 2)
+            ).view(1, 1, config["net"]["input size"])
+        else:
+            self.in_centers = torch.linspace(
+                -config["net"]["input bound"],
+                config["net"]["input bound"],
+                config["net"]["input size"],
+            ).view(1, 1, config["net"]["input size"])
+
         self.out_bounds = config["env"]["g bounds"]
 
         # Input/output layer size (related to encoding/decoding)
@@ -75,7 +83,7 @@ class SNN(SNNNetwork):
             inputs = 4
         elif self.encoding == "divergence":
             inputs = 2
-        elif self.encoding == "place":
+        elif self.encoding == "place uniform" or self.encoding == "place cubic":
             inputs = config["net"]["input size"]
         else:
             raise ValueError("Invalid encoding")
@@ -245,7 +253,7 @@ class SNN(SNNNetwork):
             self.input[..., :1].clamp_(min=0.0)
             self.input[..., 1:].clamp_(max=0.0)
             return self.input.abs()
-        elif self.encoding == "place":
+        elif self.encoding == "place uniform" or self.encoding == "place cubic":
             # Don't repeat here, but in place centers (more efficient)
             # Works, because we take only divergence, so input has shape (1, 1, 1) and
             # in_centers has shape (1, 1, centers)

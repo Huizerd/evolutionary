@@ -55,5 +55,5 @@ net:
   input scale: 1.0  # only used for place encoding
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  encoding: place
+  encoding: place cubic
   decoding: single trace

@@ -1,6 +1,10 @@
 #! /usr/bin/env bash
 
 # Left: run parallel with right (since we only use half of the cores)
+# Case 2
+python main.py --config configs/case2a.yaml --tags case2a left
+python main.py --config configs/case2b.yaml --tags case2b left
+
 # Case 3
 python main.py --config configs/case3a.yaml --tags case3a left
 python main.py --config configs/case3b.yaml --tags case3b left
