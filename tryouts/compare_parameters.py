@@ -4,16 +4,22 @@ from pathlib import Path
 import torch
 import yaml
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
+from scipy.stats import mannwhitneyu
 
 from pysnn.neuron import AdaptiveLIFNeuron
 
 from evolutionary.utils.constructors import build_network
 
 
-def compare_parameters(folder1, folder2, filter=False, pareto=False):
+def compare_parameters(
+    folder1, folder2, analysis1, analysis2, filter=False, pareto=False
+):
     folder1 = Path(folder1)
     folder2 = Path(folder2)
+    analysis1 = Path(analysis1)
+    analysis2 = Path(analysis2)
     # Glob all network files in subfolders
     files1 = sorted(folder1.rglob("*.net"))
     files2 = sorted(folder2.rglob("*.net"))
@@ -21,13 +27,13 @@ def compare_parameters(folder1, folder2, filter=False, pareto=False):
     # Optional (Pareto) filter
     if filter:
         if pareto:
-            filter1 = np.load(folder1 / "mask_pareto.npy")
-            filter2 = np.load(folder2 / "mask_pareto.npy")
+            filter1 = np.load(analysis1 / "mask_pareto.npy")
+            filter2 = np.load(analysis2 / "mask_pareto.npy")
             files1 = np.array(files1)[filter1].tolist()
             files2 = np.array(files2)[filter2].tolist()
         else:
-            filter1 = np.load(folder1 / "mask.npy")
-            filter2 = np.load(folder2 / "mask.npy")
+            filter1 = np.load(analysis1 / "mask.npy")
+            filter2 = np.load(analysis2 / "mask.npy")
             files1 = np.array(files1)[filter1].tolist()
             files2 = np.array(files2)[filter2].tolist()
 
@@ -110,6 +116,12 @@ def compare_parameters(folder1, folder2, filter=False, pareto=False):
             params2[gene][layer] = torch.cat(values, 0).view(-1).numpy()
 
     # Plot for each gene
+    stats1 = pd.DataFrame(
+        columns=["gene", "layer", "median", "MWU stat", "MWU p two-sided"]
+    )
+    stats2 = pd.DataFrame(
+        columns=["gene", "layer", "median", "MWU stat", "MWU p two-sided"]
+    )
     for gene in genes:
         fig, axs = plt.subplots(1, 3, sharey=True, sharex=True)
 
@@ -157,9 +169,44 @@ def compare_parameters(folder1, folder2, filter=False, pareto=False):
                 label="2",
                 zorder=100,
             )
+            data1 = pd.DataFrame({"values": values1})
+            data2 = pd.DataFrame({"values": values2})
+            data1.to_csv(
+                analysis1 / f"parameters+{gene}+{layer}.csv", index=False, sep=","
+            )
+            data2.to_csv(
+                analysis2 / f"parameters+{gene}+{layer}.csv", index=False, sep=","
+            )
+            stat, p = mannwhitneyu(values1, values2, alternative="two-sided")
+            median1 = np.median(values1)
+            median2 = np.median(values2)
+            stats1 = stats1.append(
+                {
+                    "gene": gene,
+                    "layer": layer,
+                    "median": median1,
+                    "MWU stat": stat,
+                    "MWU p two-sided": p,
+                },
+                ignore_index=True,
+            )
+            stats2 = stats2.append(
+                {
+                    "gene": gene,
+                    "layer": layer,
+                    "median": median2,
+                    "MWU stat": stat,
+                    "MWU p two-sided": p,
+                },
+                ignore_index=True,
+            )
+            print(f"Median 1: {median1}; median 2: {median2}")
+            print(f"MWU test two-sided {gene}-{layer}: {stat}, {p}")
         axs[0].legend()
         fig.tight_layout()
 
+    stats1.to_csv(analysis1 / f"stats.csv", index=False, sep=",")
+    stats2.to_csv(analysis2 / f"stats.csv", index=False, sep=",")
     plt.show()
 
 
@@ -168,11 +215,18 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--folder1", type=str, required=True)
     parser.add_argument("--folder2", type=str, required=True)
+    parser.add_argument("--analysis1", type=str, required=True)
+    parser.add_argument("--analysis2", type=str, required=True)
     parser.add_argument("--filter", action="store_true")
     parser.add_argument("--pareto", action="store_true")
     args = vars(parser.parse_args())
 
     # Call
     compare_parameters(
-        args["folder1"], args["folder2"], filter=args["filter"], pareto=args["pareto"]
+        args["folder1"],
+        args["folder2"],
+        args["analysis1"],
+        args["analysis2"],
+        filter=args["filter"],
+        pareto=args["pareto"],
     )
