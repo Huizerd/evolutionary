@@ -10,7 +10,7 @@ from evolutionary.utils.utils import is_pareto_efficient
 def filter_analysis(folder):
     folder = Path(folder)
     run = np.load(folder / "raw_performance.npy")
-    ids = pd.read_csv(folder / "ids.txt", sep="\t")["id"].to_numpy()
+    ids = pd.read_csv(folder / "ids.csv", sep=",")["id"].to_numpy()
 
     # Compute percentiles
     perc = np.percentile(run, [25, 50, 75], 1)

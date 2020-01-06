@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 def replot_sensitivity(folder, pareto=False):
     # Load data and masks
     folder = Path(folder)
-    run = pd.read_csv(folder / "sensitivity.txt", sep="\t").to_numpy()
+    run = pd.read_csv(folder / "sensitivity.csv", sep=",").to_numpy()
     if pareto:
         mask = np.load(folder / "mask_pareto.npy")
     else:

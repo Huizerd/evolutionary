@@ -16,7 +16,7 @@ def plot_opt_perf(folder):
     ax[1].set_xlabel("generation")
     ax[1].grid()
     for i, f in enumerate(files):
-        data = pd.read_csv(f, sep="\t")
+        data = pd.read_csv(f, sep=",")
         ax[0].plot(data["convergence"], label=str(f).split("/")[-2])
         ax[1].plot(data["hypervolume"], label=str(f).split("/")[-2])
 
