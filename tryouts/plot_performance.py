@@ -113,7 +113,7 @@ def plot_performance(folder, parameters):
             obs, _, done, _ = env.step(action)
 
             # Log performance
-            action_list.append(np.clip(env.action, *config["env"]["g bounds"]))
+            action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
             state_list.append(env.state.copy())
             obs_gt_list.append(env.div_ph.copy())
             obs_list.append(obs.copy())
