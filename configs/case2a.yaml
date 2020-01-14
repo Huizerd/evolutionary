@@ -1,9 +1,9 @@
-#### Case 2 ####
+#### Case 2a ####
 # - SNN
 # - alphas and taus per neuron
 # - all parameters evolved
 # - optimization for spikes
-# - divergence place cells as input
+# - uniformly distributed divergence place cells as input
 
 log location: logs/cases/
 log interval: 50

@@ -99,16 +99,19 @@ class SNN(SNNNetwork):
         # Neurons
         self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
 
-        if config["net"]["neuron"][0] == "regular":
-            self.neuron1 = LIFNeuron(
-                (1, 1, config["net"]["hidden size"]), *n_hid_dynamics[:-2]
-            )
-        elif config["net"]["neuron"][0] == "adaptive":
-            self.neuron1 = AdaptiveLIFNeuron(
-                (1, 1, config["net"]["hidden size"]), *n_hid_dynamics
-            )
+        if config["net"]["hidden size"] > 0:
+            if config["net"]["neuron"][0] == "regular":
+                self.neuron1 = LIFNeuron(
+                    (1, 1, config["net"]["hidden size"]), *n_hid_dynamics[:-2]
+                )
+            elif config["net"]["neuron"][0] == "adaptive":
+                self.neuron1 = AdaptiveLIFNeuron(
+                    (1, 1, config["net"]["hidden size"]), *n_hid_dynamics
+                )
+            else:
+                raise ValueError("Invalid neuron type for hidden layer")
         else:
-            raise ValueError("Invalid neuron type for hidden layer")
+            self.neuron1 = None
 
         if config["net"]["neuron"][1] == "regular":
             self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics[:-2])
@@ -118,20 +121,26 @@ class SNN(SNNNetwork):
             raise ValueError("Invalid neuron type for output layer")
 
         # Connections
-        self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
-        self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
+        if self.neuron1 is not None:
+            self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
+            self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
+        else:
+            self.fc2 = Linear(inputs, outputs, *c_dynamics)
 
     def forward(self, x):
         # Input layer: encoding
         x = self._encode(x)
-        x, trace = self.neuron0(x)  # same x as above (just fed through)
+        spikes, trace = self.neuron0(
+            x
+        )  # spikes == x as above (just fed through, and not actually spikes)
 
         # Hidden layer
         # So actually, divergence * weight is direct input current to neurons here
         # So I might as well not change anything about the parameters there!
         # Connection trace is not used (2nd argument)
-        x, _ = self.fc1(x, trace)
-        spikes, trace = self.neuron1(x)
+        if self.neuron1 is not None:
+            x, _ = self.fc1(spikes, trace)
+            spikes, trace = self.neuron1(x)
 
         # Output layer
         x, _ = self.fc2(spikes, trace)
@@ -168,7 +177,7 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
                     and "all" in types
-                    and "uniform" not in types
+                    and "clamped" not in types
                 ):
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
@@ -179,12 +188,13 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
                     and "all" in types
-                    and "uniform" in types
+                    and "clamped" in types
                 ):
                     param = getattr(child, gene)
-                    mutation = torch.empty_like(param).uniform_(0.0, 2.0)
-                    mask = torch.rand_like(param) < mutation_rate
-                    param.masked_scatter_(mask, mutation)
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.0, 1.0)
                 elif (
                     hasattr(child, gene)
                     and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
@@ -199,7 +209,7 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["tau_v", "tau_t", "tau_thresh"]
                     and "all" in types
-                    and "uniform" not in types
+                    and "clamped" not in types
                 ):
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
@@ -210,12 +220,13 @@ class SNN(SNNNetwork):
                     hasattr(child, gene)
                     and gene in ["tau_v", "tau_t", "tau_thresh"]
                     and "all" in types
-                    and "uniform" in types
+                    and "clamped" in types
                 ):
                     param = getattr(child, gene)
-                    mutation = torch.empty_like(param).uniform_(0.0, 1.0)
-                    mask = torch.rand_like(param) < mutation_rate
-                    param.masked_scatter_(mask, mutation)
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.3, 1.0)
                 elif (
                     hasattr(child, gene)
                     and gene in ["tau_v", "tau_t", "tau_thresh"]
@@ -258,8 +269,13 @@ class SNN(SNNNetwork):
             # Works, because we take only divergence, so input has shape (1, 1, 1) and
             # in_centers has shape (1, 1, centers)
             self.input = self.in_scale * torch.exp(
-                -(input[..., 0].clamp_(-self.in_bound, self.in_bound) - self.in_centers)
-                ** 2
+                -(
+                    (
+                        input[..., 0].clamp_(-self.in_bound, self.in_bound)
+                        - self.in_centers
+                    )
+                    ** 2
+                )
                 / (2.0 * self.in_sigma ** 2)
             )
             return self.input

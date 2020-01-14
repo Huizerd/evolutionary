@@ -1,9 +1,10 @@
-#### Case 2b ####
-# - SNN
-# - alphas and taus per neuron
+#### Case 8 ####
+# - SNN without hidden neurons
+# - alphas and taus per neuron, but clamped to prevent
+#    complete decay and promote smooth control
 # - all parameters evolved
 # - optimization for spikes
-# - cubically distributed divergence place cells as input
+# - divergence + derivative as input
 
 log location: logs/cases/
 log interval: 50
@@ -12,7 +13,7 @@ evo:
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
-  types: [all]
+  types: [all, clamped]
   obj weights: [-1.0, -1.0, -1.0, -1.0]
   obj optimal: [[1.0, 0.05, 0.0, 0.0]]
   obj worst: [100.0, 10.0, 10.0, 1000.0]
@@ -37,7 +38,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 20
+  hidden size: 0
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]
@@ -55,5 +56,5 @@ net:
   input scale: 1.0  # only used for place encoding
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  encoding: place cubic
+  encoding: both
   decoding: single trace
