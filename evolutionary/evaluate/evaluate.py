@@ -28,6 +28,8 @@ def evaluate(valid_objectives, config, envs, h0, individual):
                 spikes += (
                     individual[0].neuron1.spikes.sum().item()
                     + individual[0].neuron2.spikes.sum().item()
+                    if individual[0].neuron1 is not None
+                    else individual[0].neuron2.spikes.sum().item()
                 )
 
         # Increment other scores

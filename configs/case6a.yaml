@@ -1,9 +1,10 @@
-#### Case 2b ####
-# - SNN
+#### Case 6a ####
+# - SNN with 1 hidden neuron
 # - alphas and taus per neuron
 # - all parameters evolved
 # - optimization for spikes
-# - cubically distributed divergence place cells as input
+# - divergence + derivative as input
+# - motor dynamics fixed to 0.05
 
 log location: logs/cases/
 log interval: 50
@@ -25,7 +26,7 @@ env:
   noise p: [0.0, 0.25]
   g: 9.81
   g bounds: [-0.8, 0.5]
-  thrust tc: [0.005, 0.04]
+  thrust tc: [0.05, 0.05]
   settle: 0.5
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
@@ -37,7 +38,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 20
+  hidden size: 1
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]
@@ -55,5 +56,5 @@ net:
   input scale: 1.0  # only used for place encoding
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
-  encoding: place cubic
+  encoding: both
   decoding: single trace
