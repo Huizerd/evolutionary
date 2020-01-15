@@ -219,6 +219,10 @@ def plot_performance(folder, parameters):
                 "vel_z": np.array(state_list)[:, 1],
                 "thrust": np.array(state_list)[:, 2],
                 "tsp": np.array(action_list),
+                "tsp_lp": pd.Series(action_list)
+                .rolling(window=20, min_periods=1)
+                .mean()
+                .values,
                 "div": np.array(obs_list)[:, 0],
                 "div_gt": np.array(obs_gt_list)[:, 0],
                 "divdot": np.array(obs_list)[:, 1],
