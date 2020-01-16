@@ -181,7 +181,7 @@ def model_to_header(config, in_file, verbose=2):
         else:
             string = [
                 "//Auto-generated",
-                '#include "Network.h"',
+                '#include "Network2.h"',
                 '#include "connection_conf_inout.h"',
                 '#include "neuron_conf_out.h"',
                 f"float const centers[] = {{{', '.join([str(c) for c in centers])}}};",
