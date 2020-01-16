@@ -81,12 +81,24 @@ def compare_parameters(
     # Remove unwanted ones, such as thresh for AdaptiveLIFNeuron
     for name, child in network1.named_children():
         if isinstance(child, AdaptiveLIFNeuron):
-            params1["thresh"].pop(name, None)
+            params1["thresh"][name] = None
+
+    # If no hidden layer, add empty neuron1
+    if network1.neuron1 is None:
+        for gene in genes:
+            if gene != "weight":
+                params1[gene]["neuron1"] = None
+            else:
+                params1[gene]["fc1"] = None
 
     # Convert to single numpy arrays
     for gene, layers in params1.items():
         for layer, values in layers.items():
-            params1[gene][layer] = torch.cat(values, 0).view(-1).numpy()
+            params1[gene][layer] = (
+                torch.cat(values, 0).view(-1).numpy()
+                if params1[gene][layer] is not None
+                else np.array([])
+            )
 
     ### 2 ###
     # Go over networks
@@ -108,12 +120,24 @@ def compare_parameters(
     # Remove unwanted ones, such as thresh for AdaptiveLIFNeuron
     for name, child in network2.named_children():
         if isinstance(child, AdaptiveLIFNeuron):
-            params2["thresh"].pop(name, None)
+            params2["thresh"][name] = None
+
+    # If no hidden layer, add empty neuron1
+    if network2.neuron1 is None:
+        for gene in genes:
+            if gene != "weight":
+                params2[gene]["neuron1"] = None
+            else:
+                params2[gene]["fc1"] = None
 
     # Convert to single numpy arrays
     for gene, layers in params2.items():
         for layer, values in layers.items():
-            params2[gene][layer] = torch.cat(values, 0).view(-1).numpy()
+            params2[gene][layer] = (
+                torch.cat(values, 0).view(-1).numpy()
+                if params2[gene][layer] is not None
+                else np.array([])
+            )
 
     # Plot for each gene
     stats1 = pd.DataFrame(
@@ -132,7 +156,7 @@ def compare_parameters(
                 for params in [params1, params2]
                 for g, layers in params.items()
                 for l in layers.values()
-                if g == gene
+                if g == gene and l.shape[0] > 0
             ]
         )
         max_gene = max(
@@ -141,14 +165,23 @@ def compare_parameters(
                 for params in [params1, params2]
                 for g, layers in params.items()
                 for l in layers.values()
-                if g == gene
+                if g == gene and l.shape[0] > 0
             ]
         )
         bins = np.linspace(min_gene, max_gene, 15)
 
-        for ax, (layer, values1), values2 in zip(
-            axs, params1[gene].items(), params2[gene].values()
-        ):
+        if gene != "weight":
+            layer_names = ["neuron0", "neuron1", "neuron2"]
+        else:
+            layer_names = ["fc1", "fc2"]
+
+        for ax, layer in zip(axs, layer_names):
+            print()
+            print(gene, layer)
+            if layer not in params1[gene] and layer not in params2[gene]:
+                continue
+            values1 = params1[gene][layer]
+            values2 = params2[gene][layer]
             ax.set_title(f"{gene}: {layer}")
             ax.grid()
             ax.hist(
