@@ -122,6 +122,8 @@ def plot_performance(folder, parameters):
                 spikes += (
                     network.neuron1.spikes.sum().item()
                     + network.neuron2.spikes.sum().item()
+                    if network.neuron1 is not None
+                    else network.neuron2.spikes.sum().item()
                 )
                 spike_list.append(
                     [
