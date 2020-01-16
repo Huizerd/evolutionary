@@ -14,10 +14,8 @@ def filter_analysis(folder):
 
     # Compute percentiles
     perc = np.percentile(run, [25, 50, 75], 1)
-    # Compute stds
-    stds = np.std(run, 1)
     # Filter
-    mask = (perc[1, :, 0] < 10.0) & (perc[1, :, 2] < 1.0) & (stds[:, 1] == 0.0)
+    mask = (perc[1, :, 0] < 10.0) & (perc[1, :, 2] < 1.0)
     efficient = is_pareto_efficient(perc[1, :, :])
     mask_pareto = mask & efficient
     perc_filtered = perc[:, mask, :]
