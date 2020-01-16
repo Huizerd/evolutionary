@@ -64,6 +64,8 @@ def vis_sensitivity_complete(config, parameters, verbose=2):
                     spikes += (
                         network.neuron1.spikes.sum().item()
                         + network.neuron2.spikes.sum().item()
+                        if network.neuron1 is not None
+                        else network.neuron2.spikes.sum().item()
                     )
 
             # Increment counters
@@ -246,6 +248,8 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
                     spikes += (
                         network.neuron1.spikes.sum().item()
                         + network.neuron2.spikes.sum().item()
+                        if network.neuron1 is not None
+                        else network.neuron2.spikes.sum().item()
                     )
 
             # Increment counters
