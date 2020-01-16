@@ -129,7 +129,9 @@ def plot_performance(folder, parameters):
                     [
                         spikes,
                         network.neuron1.spikes.sum().item()
-                        + network.neuron2.spikes.sum().item(),
+                        + network.neuron2.spikes.sum().item()
+                        if network.neuron1 is not None
+                        else network.neuron2.spikes.sum().item(),
                     ]
                 )
 
@@ -250,73 +252,105 @@ def plot_performance(folder, parameters):
 
     # Write network to tikz-network-compatible file
     # Edges
-    # First layer
-    edges_0 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
-    for i in range(network.fc1.weight.shape[0]):
-        for j in range(-network.fc1.weight.shape[1], 0):
-            edges_0 = edges_0.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
-    edges_0["u"] = edges_0["u"].astype(int)
-    edges_0["v"] = edges_0["v"].astype(int)
-    edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
-    edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "magenta", "cyan")
-    edges_0["lw"] = edges_0["lw_raw"].abs()
-    # Second layer
-    edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
-    for i in range(network.fc2.weight.shape[0]):
-        for j in range(network.fc2.weight.shape[1]):
-            edges_1 = edges_1.append(
-                {"u": j, "v": i + network.fc2.weight.shape[1], "lw": 0.0},
-                ignore_index=True,
-            )
-    edges_1["u"] = edges_1["u"].astype(int)
-    edges_1["v"] = edges_1["v"].astype(int)
-    edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
-    edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "magenta", "cyan")
-    edges_1["lw"] = edges_1["lw_raw"].abs()
-    edges = pd.concat([edges_0, edges_1], 0)
-    edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
+    if network.neuron1 is not None:
+        # First layer
+        edges_0 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+        for i in range(network.fc1.weight.shape[0]):
+            for j in range(-network.fc1.weight.shape[1], 0):
+                edges_0 = edges_0.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
+        edges_0["u"] = edges_0["u"].astype(int)
+        edges_0["v"] = edges_0["v"].astype(int)
+        edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
+        edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "magenta", "cyan")
+        edges_0["lw"] = edges_0["lw_raw"].abs()
+        # Second layer
+        edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+        for i in range(network.fc2.weight.shape[0]):
+            for j in range(network.fc2.weight.shape[1]):
+                edges_1 = edges_1.append(
+                    {"u": j, "v": i + network.fc2.weight.shape[1], "lw": 0.0},
+                    ignore_index=True,
+                )
+        edges_1["u"] = edges_1["u"].astype(int)
+        edges_1["v"] = edges_1["v"].astype(int)
+        edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
+        edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "magenta", "cyan")
+        edges_1["lw"] = edges_1["lw_raw"].abs()
+        edges = pd.concat([edges_0, edges_1], 0)
+        edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
+    else:
+        # Only layer
+        edges = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+        for i in range(network.fc2.weight.shape[0]):
+            for j in range(-network.fc2.weight.shape[1], 0):
+                edges = edges.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
+        edges["u"] = edges["u"].astype(int)
+        edges["v"] = edges["v"].astype(int)
+        edges["lw_raw"] = network.fc2.weight.view(-1).tolist()
+        edges["color"] = np.where(edges["lw_raw"] > 0, "magenta", "cyan")
+        edges["lw"] = edges["lw_raw"].abs()
+        edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
 
     # Vertices
     k = 0
     # Input layer
-    vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
-    for j in range(-network.fc1.weight.shape[1], 0):
-        vertices_0 = vertices_0.append(
-            {
-                "id": j,
-                "x": 0.0,
-                "y": network.fc1.weight.shape[1] / 4
-                - 0.25
-                - 0.5 * (network.fc1.weight.shape[1] + j),
-                "color": "cyan",
-            },
-            ignore_index=True,
-        )
+    if network.neuron1 is not None:
+        vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
+        for j in range(-network.fc1.weight.shape[1], 0):
+            vertices_0 = vertices_0.append(
+                {
+                    "id": j,
+                    "x": 0.0,
+                    "y": network.fc1.weight.shape[1] / 4
+                    - 0.25
+                    - 0.5 * (network.fc1.weight.shape[1] + j),
+                    "color": "cyan",
+                },
+                ignore_index=True,
+            )
+    else:
+        vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
+        for j in range(-network.fc2.weight.shape[1], 0):
+            vertices_0 = vertices_0.append(
+                {
+                    "id": j,
+                    "x": 0.0,
+                    "y": network.fc2.weight.shape[1] / 4
+                    - 0.25
+                    - 0.5 * (network.fc2.weight.shape[1] + j),
+                    "color": "cyan",
+                },
+                ignore_index=True,
+            )
     # Hidden layer
-    vertices_1 = pd.DataFrame(columns=["id", "x", "y", "color"])
-    for j in range(network.fc2.weight.shape[1]):
-        vertices_1 = vertices_1.append(
-            {
-                "id": j,
-                "x": 2.0,
-                "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
-                "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
-            },
-            ignore_index=True,
-        )
-        k += 1
+    if network.neuron1 is not None:
+        vertices_1 = pd.DataFrame(columns=["id", "x", "y", "color"])
+        for j in range(network.fc2.weight.shape[1]):
+            vertices_1 = vertices_1.append(
+                {
+                    "id": j,
+                    "x": 2.0,
+                    "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
+                    "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
+                },
+                ignore_index=True,
+            )
+            k += 1
     # Output layer
     vertices_2 = pd.DataFrame(columns=["id", "x", "y", "color"])
     vertices_2 = vertices_2.append(
         {
-            "id": network.fc2.weight.shape[1],
-            "x": 4.0,
+            "id": k,
+            "x": 4.0 if network.neuron1 is not None else 2.0,
             "y": 0.0,
             "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
         },
         ignore_index=True,
     )
-    vertices = pd.concat([vertices_0, vertices_1, vertices_2], 0)
+    if network.neuron1 is not None:
+        vertices = pd.concat([vertices_0, vertices_1, vertices_2], 0)
+    else:
+        vertices = pd.concat([vertices_0, vertices_2], 0)
     vertices.to_csv(str(save_folder) + f"/network_vertices.csv", index=False, sep=",")
 
     # Add grid
