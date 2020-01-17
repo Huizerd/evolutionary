@@ -10,17 +10,22 @@ mpl.rcParams["lines.linewidth"] = 0.8
 
 def plot_IRL(folder):
     # Find files
-    files = glob.glob(folder + "2019*.csv")
+    files = glob.glob(folder + "20*.csv")
 
     # Create plot
-    fig, axs = plt.subplots(6, 1, sharex=True, figsize=(10, 10))
+    fig, axs = plt.subplots(7, 1, sharex=True, figsize=(10, 10), dpi=200)
     axs[0].set_ylabel("height [m]")
     axs[1].set_ylabel("velocity [m/s]")
     axs[2].set_ylabel("thrust [m/s2]")
-    axs[3].set_ylabel("divergence [1/s]")
-    axs[4].set_ylabel("divergence dot [1/s2]")
-    axs[5].set_ylabel("spikes [?]")
-    axs[5].set_xlabel("time [s]")
+    axs[3].set_ylabel("thrust lp [m/s2]")
+    axs[4].set_ylabel("divergence [1/s]")
+    axs[5].set_ylabel("divergence dot [1/s2]")
+    axs[6].set_ylabel("spikes [?]")
+    axs[6].set_xlabel("time [s]")
+
+    cm = plt.get_cmap("gist_rainbow")
+    for ax in axs:
+        ax.set_prop_cycle(color=[cm(i / 15) for i in range(15)])
 
     # Go over files
     i = 0
@@ -54,32 +59,37 @@ def plot_IRL(folder):
             plot_data["spike_step"] = plot_data["spike_count"].diff()
             plot_data["spike_step"][0] = 0
             plot_data["spike_step"] = plot_data["spike_step"].astype(int)
+            plot_data["thrust"] = plot_data["thrust"] / 9.81
+            plot_data["thrust_lp"] = (
+                plot_data["thrust"].rolling(window=20, min_periods=1).mean()
+            )
             # Earlier "landing"
             stop_alt = (-plot_data["pos_z"] < 0.1).idxmax()
             plot_data = plot_data.iloc[:stop_alt, :]
 
             # Plot data
             # Height
-            axs[0].plot(plot_data["time"], -plot_data["pos_z"], "C0", label=f"run {i}")
+            axs[0].plot(plot_data["time"], -plot_data["pos_z"], label=f"run {i}")
             # Velocity
-            axs[1].plot(plot_data["time"], -plot_data["vel_z"], "C0", label=f"run {i}")
+            axs[1].plot(plot_data["time"], -plot_data["vel_z"], label=f"run {i}")
             # Thrust
-            axs[2].plot(plot_data["time"], plot_data["thrust"], "C0", label=f"run {i}")
+            axs[2].plot(plot_data["time"], plot_data["thrust"], label=f"run {i}")
+            # Thrust low-pass
+            axs[3].plot(plot_data["time"], plot_data["thrust_lp"], label=f"run {i}")
             # Divergence
-            axs[3].plot(plot_data["time"], plot_data["div"], "C0", label=f"run {i}")
-            axs[3].plot(
-                plot_data["time"], plot_data["div_gt"], "C1", label=f"run {i} GT"
-            )
+            axs[4].plot(plot_data["time"], plot_data["div"], label=f"run {i}")
+            # axs[3].plot(
+            #     plot_data["time"], plot_data["div_gt"], "C1", label=f"run {i} GT"
+            # )
             # Divergence dot
-            axs[4].plot(plot_data["time"], plot_data["divdot"], "C0", label=f"run {i}")
-            axs[4].plot(
-                plot_data["time"], plot_data["divdot_gt"], "C1", label=f"run {i} GT"
-            )
+            axs[5].plot(plot_data["time"], plot_data["divdot"], label=f"run {i}")
+            # axs[4].plot(
+            #     plot_data["time"], plot_data["divdot_gt"], "C1", label=f"run {i} GT"
+            # )
             # Spikes
-            axs[5].plot(
+            axs[6].plot(
                 plot_data["time"],
                 plot_data["spike_count"] / plot_data["time"],
-                "C0",
                 label=f"run {i}",
             )
 
@@ -91,7 +101,11 @@ def plot_IRL(folder):
 
     # Add grid and legend
     for ax in axs:
+        # box = ax.get_position()
+        # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.grid()
+    axs[0].legend()
+    # axs[0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
     fig.tight_layout()
 
     plt.show()
