@@ -26,7 +26,7 @@ if __name__ == "__main__":
     ax1.grid()
 
     encoded = 1.0 * torch.exp(
-        -(div.clamp_(*input_bounds) - centers_cubed) ** 2 / (4.0 * 1.0)
+        -((div.clamp_(*input_bounds) - centers_cubed) ** 2) / (4.0 * 1.0)
     )
 
     fig2, ax2 = plt.subplots()
