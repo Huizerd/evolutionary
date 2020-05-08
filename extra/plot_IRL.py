@@ -55,6 +55,7 @@ def plot_IRL(folder):
                 ],
             ]
             plot_data.reset_index(drop=True, inplace=True)
+            plot_data["timestamp"] = plot_data["time"]
             plot_data["time"] -= plot_data.loc[0, "time"]
             plot_data["spike_step"] = plot_data["spike_count"].diff()
             plot_data["spike_step"][0] = 0
