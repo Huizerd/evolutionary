@@ -3,8 +3,13 @@ from functools import partial
 
 import numpy as np
 import pandas as pd
+import matplotlib.colors as clr
 from matplotlib import pyplot as plt
 from matplotlib import animation
+
+# Colormap for encoding
+cmap = clr.LinearSegmentedColormap.from_list("blackred", ["k", "r"])
+
 
 # Initialization function: plot the background of each frame
 def init(verts):
@@ -13,9 +18,30 @@ def init(verts):
 
 # Animation function, this is called sequentially
 def animate(data, verts, i):
+    # Visualize encoding
+    inputs = data.loc[i, ["div", "divdot"]].to_numpy()
+    encode = np.array(
+        [
+            max(0.0, inputs[0]),
+            max(0.0, inputs[1]),
+            min(0.0, inputs[0]),
+            min(0.0, inputs[1]),
+        ]
+    )
+    enc_col = cmap(abs(encode) / np.array([5, 50, 5, 50]))
+
+    # Visualize spikes
     spikes = data.filter(regex=r"n\d+_spike").loc[i, :].to_numpy()
-    spikes = np.concatenate(([0, 0, 0, 0], spikes), axis=0)
-    colors = np.where(spikes == 0, "black", "red")
+    colors = np.zeros((spikes.shape[0], 4))
+
+    for j in range(spikes.shape[0]):
+        if spikes[j] == 0:
+            colors[j, :] = [0.0, 0.0, 0.0, 1.0]
+        else:
+            colors[j, :] = [1.0, 0.0, 0.0, 1.0]
+
+    # colors = np.where(spikes == 0, [0.0, 0.0, 0.0, 1.0], [1.0, 0.0, 0.0, 0.0])
+    colors = np.concatenate((enc_col, colors), axis=0)
     verts.set_facecolors(colors)
     return (verts,)
 
