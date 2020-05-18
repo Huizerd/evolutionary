@@ -32,7 +32,7 @@ def animate_run(inp, out, fps):
 
     # First set up the figure, the axis, and the plot element we want to animate
     fig, axs = plt.subplots(
-        3, 1, figsize=(5, 4), sharex=True, dpi=400, subplot_kw={"xlim": (0, 2.5)}
+        3, 1, figsize=(4, 6), sharex=True, dpi=400, subplot_kw={"xlim": (0, 2.5)}
     )
     # fig = plt.figure(figsize=(5, 3), dpi=400)
     # fig.patch.set_facecolor("#abd7e6")
@@ -48,7 +48,7 @@ def animate_run(inp, out, fps):
     axs[0].set_ylabel("div [s$^{-1}$]")
     axs[1].set_ylabel("$\Delta$ div [s$^{-2}$]")
     axs[2].set_ylabel("thrust [g]")
-    axs[2].set_xlabel("$time$ [s]")
+    axs[2].set_xlabel("time [s]")
     # ax.set_xlabel("time [s]")
     for ax in axs:
         ax.grid()
