@@ -31,6 +31,9 @@ def evaluate(valid_objectives, config, envs, h0, individual):
                     if individual[0].neuron1 is not None
                     else individual[0].neuron2.spikes.sum().item()
                 )
+            # Increment divergence SSE
+            if env.t > config["env"]["settle"]:
+                objectives["SSE D0.5"] += (0.5 - env.div_ph[0]) ** 2
 
         # Increment other scores
         # Time to land, final height and final velocity

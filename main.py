@@ -63,6 +63,7 @@ def main(config, verbose):
         "final velocity",
         "final velocity squared",
         "spikes",
+        "SSE D0.5",
     ]
     assert (
         len(config["evo"]["objectives"]) >= 3
