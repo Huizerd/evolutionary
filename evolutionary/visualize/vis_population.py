@@ -5,7 +5,6 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
     # Set indices and limits based on labels
-    assert len(obj_labels) >= 3, "Only 3 or more objectives are supported"
     assert len(plot_obj) == 2, "Provide 2 dimensions/objectives to be plotted"
     obj_limits = []
     for obj in obj_labels:
@@ -15,6 +14,10 @@ def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
             obj_limits.append(2.0)
         elif obj == "spikes":
             obj_limits.append(200.0)
+        elif obj == "SSE D0.5":
+            obj_limits.append(500.0)
+        elif obj == "SSE D1":
+            obj_limits.append(500.0)
         else:
             obj_limits.append(np.inf)
 

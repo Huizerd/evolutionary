@@ -1,21 +1,16 @@
-################
-# - ANN
-# - all parameters evolved
-# - divergence + derivative as input
-
-log location: logs/runs/
+log location: logs/cases/
 log interval: 50
 evo:
-  gens: 400
+  gens: 200
   pop size: 100
   mutation rate: 0.3
   genes: [weight, bias]
   types: []
-  obj weights: [-1.0, -1.0, -1.0]
-  obj optimal: [[1.0, 0.05, 0.0]]
-  obj worst: [100.0, 10.0, 10.0]
-  objectives: [time to land, final height, final velocity]
-  plot: [[0, 2]]  # combinations of objectives to plot
+  obj weights: [-1.0, -1.00]
+  obj optimal: [[0.0, 0.0]]
+  obj worst: [10000.0, 0.0]
+  objectives: [SSE D0.5, dummy]
+  plot: [[0, 1]]  # combinations of objectives to plot
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]

@@ -317,8 +317,8 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
     # Plot results
     fig1, ax1 = plt.subplots(1, 1, dpi=200)
     ax1.set_title("Performance sensitivity")
-    ax1.set_xlabel(config["evo"]["objectives"][0])
-    ax1.set_ylabel(config["evo"]["objectives"][2])
+    ax1.set_xlabel("time to land")
+    ax1.set_ylabel("final velocity")
     ax1.set_xlim([0.0, 10.0])
     ax1.set_ylim([0.0, 1.0])
     ax1.grid()
@@ -357,8 +357,8 @@ def vis_sensitivity_complete_4m(config, parameters, verbose=2):
     # Also plot figure with IDs
     fig2, ax2 = plt.subplots(1, 1, dpi=200)
     ax2.set_title("Performance sensitivity")
-    ax2.set_xlabel(config["evo"]["objectives"][0])
-    ax2.set_ylabel(config["evo"]["objectives"][2])
+    ax2.set_xlabel("time to land")
+    ax2.set_ylabel("final velocity")
     ax2.set_xlim([0.0, 10.0])
     ax2.set_ylim([0.0, 1.0])
     ax2.grid()

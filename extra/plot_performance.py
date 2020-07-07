@@ -159,199 +159,206 @@ def plot_performance(folder, parameters):
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], "C0", label=f"run {i}")
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], "C1", label=f"run {i} GT")
         # Spikes
-        axs_p[5].plot(
-            time_list,
-            np.array(spike_list)[:, 0] / np.array(time_list),
-            "C0",
-            label=f"run {i}",
-        )
-        axs_p[5].plot(
-            time_list,
-            pd.Series(np.array(spike_list)[:, 1])
-            .rolling(window=20, min_periods=1)
-            .mean()
-            .values,
-            "C1",
-            label=f"run {i}",
-        )
-
-        # Plot neurons
-        neurons = OrderedDict()
-        k = 0
-        # Go over layers
-        for recordings in neuron_dict.values():
-            # Go over neurons in layer
-            for j in range(np.array(recordings["spike"]).shape[1]):
-                neurons[f"n{k}_spike"] = np.array(recordings["spike"])[:, j].astype(
-                    float
-                )
-                neurons[f"n{k}_trace"] = np.array(recordings["trace"])[:, j]
-                neurons[f"n{k}_ma"] = (
-                    pd.Series(np.array(recordings["spike"])[:, j])
-                    .rolling(window=20, min_periods=1)
-                    .mean()
-                    .values
-                )
-                axs_n[k].plot(time_list, np.array(recordings["trace"])[:, j], "C0")
-                axs_n[k].plot(time_list, np.array(recordings["spike"])[:, j], "C1")
-                axs_n[k].plot(
-                    time_list,
-                    pd.Series(np.array(recordings["spike"])[:, j])
-                    .rolling(window=20, min_periods=1)
-                    .mean()
-                    .values,
-                    "C2",
-                )
-                axs_n[k].set_title(f"{k}")
-                k += 1
-
-        # Save run
-        rates.append(
-            [
-                [
-                    v.sum() / (time_list[-1] - config["env"]["settle"]),
-                    v.sum() / (len(time_list) - config["env"]["settle"] // env.dt + 1),
-                ]
-                for k, v in neurons.items()
-                if "spike" in k
-            ]
-        )
-        data = pd.DataFrame(
-            {
-                "time": time_list,
-                "pos_z": np.array(state_list)[:, 0],
-                "vel_z": np.array(state_list)[:, 1],
-                "thrust": np.array(state_list)[:, 2],
-                "tsp": np.array(action_list),
-                "tsp_lp": pd.Series(action_list)
+        if isinstance(network, SNNNetwork):
+            axs_p[5].plot(
+                time_list,
+                np.array(spike_list)[:, 0] / np.array(time_list),
+                "C0",
+                label=f"run {i}",
+            )
+            axs_p[5].plot(
+                time_list,
+                pd.Series(np.array(spike_list)[:, 1])
                 .rolling(window=20, min_periods=1)
                 .mean()
                 .values,
-                "div": np.array(obs_list)[:, 0],
-                "div_gt": np.array(obs_gt_list)[:, 0],
-                "divdot": np.array(obs_list)[:, 1],
-                "divdot_gt": np.array(obs_gt_list)[:, 1],
-                "spike_count": np.array(spike_list)[:, 0],
-                "spike_step": np.array(spike_list)[:, 1],
-            }
-        )
-        neurons = pd.DataFrame(neurons)
-        data = pd.concat([data, neurons], 1)
-        data.to_csv(str(save_folder) + f"/run{i}.csv", index=False, sep=",")
+                "C1",
+                label=f"run {i}",
+            )
+
+            # Plot neurons
+            neurons = OrderedDict()
+            k = 0
+            # Go over layers
+            for recordings in neuron_dict.values():
+                # Go over neurons in layer
+                for j in range(np.array(recordings["spike"]).shape[1]):
+                    neurons[f"n{k}_spike"] = np.array(recordings["spike"])[:, j].astype(
+                        float
+                    )
+                    neurons[f"n{k}_trace"] = np.array(recordings["trace"])[:, j]
+                    neurons[f"n{k}_ma"] = (
+                        pd.Series(np.array(recordings["spike"])[:, j])
+                        .rolling(window=20, min_periods=1)
+                        .mean()
+                        .values
+                    )
+                    axs_n[k].plot(time_list, np.array(recordings["trace"])[:, j], "C0")
+                    axs_n[k].plot(time_list, np.array(recordings["spike"])[:, j], "C1")
+                    axs_n[k].plot(
+                        time_list,
+                        pd.Series(np.array(recordings["spike"])[:, j])
+                        .rolling(window=20, min_periods=1)
+                        .mean()
+                        .values,
+                        "C2",
+                    )
+                    axs_n[k].set_title(f"{k}")
+                    k += 1
+
+            # Save run
+            rates.append(
+                [
+                    [
+                        v.sum() / (time_list[-1] - config["env"]["settle"]),
+                        v.sum()
+                        / (len(time_list) - config["env"]["settle"] // env.dt + 1),
+                    ]
+                    for k, v in neurons.items()
+                    if "spike" in k
+                ]
+            )
+            data = pd.DataFrame(
+                {
+                    "time": time_list,
+                    "pos_z": np.array(state_list)[:, 0],
+                    "vel_z": np.array(state_list)[:, 1],
+                    "thrust": np.array(state_list)[:, 2],
+                    "tsp": np.array(action_list),
+                    "tsp_lp": pd.Series(action_list)
+                    .rolling(window=20, min_periods=1)
+                    .mean()
+                    .values,
+                    "div": np.array(obs_list)[:, 0],
+                    "div_gt": np.array(obs_gt_list)[:, 0],
+                    "divdot": np.array(obs_list)[:, 1],
+                    "divdot_gt": np.array(obs_gt_list)[:, 1],
+                    "spike_count": np.array(spike_list)[:, 0],
+                    "spike_step": np.array(spike_list)[:, 1],
+                }
+            )
+            neurons = pd.DataFrame(neurons)
+            data = pd.concat([data, neurons], 1)
+            data.to_csv(str(save_folder) + f"/run{i}.csv", index=False, sep=",")
 
     # Compute rates
-    rates = pd.DataFrame(
-        {
-            "mean_time": np.array(rates).mean(0)[:, 0],
-            "mean_steps": np.array(rates).mean(0)[:, 1],
-            "std_time": np.array(rates).std(0)[:, 0],
-            "std_steps": np.array(rates).std(0)[:, 1],
-        }
-    )
-    rates.to_csv(str(save_folder) + f"/rates.csv", index=False, sep=",")
+    if isinstance(network, SNNNetwork):
+        rates = pd.DataFrame(
+            {
+                "mean_time": np.array(rates).mean(0)[:, 0],
+                "mean_steps": np.array(rates).mean(0)[:, 1],
+                "std_time": np.array(rates).std(0)[:, 0],
+                "std_steps": np.array(rates).std(0)[:, 1],
+            }
+        )
+        rates.to_csv(str(save_folder) + f"/rates.csv", index=False, sep=",")
 
-    # Write network to tikz-network-compatible file
-    # Edges
-    if network.neuron1 is not None:
-        # First layer
-        edges_0 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
-        for i in range(network.fc1.weight.shape[0]):
+        # Write network to tikz-network-compatible file
+        # Edges
+        if network.neuron1 is not None:
+            # First layer
+            edges_0 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+            for i in range(network.fc1.weight.shape[0]):
+                for j in range(-network.fc1.weight.shape[1], 0):
+                    edges_0 = edges_0.append(
+                        {"u": j, "v": i, "lw": 0.0}, ignore_index=True
+                    )
+            edges_0["u"] = edges_0["u"].astype(int)
+            edges_0["v"] = edges_0["v"].astype(int)
+            edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
+            edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "magenta", "cyan")
+            edges_0["lw"] = edges_0["lw_raw"].abs()
+            # Second layer
+            edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+            for i in range(network.fc2.weight.shape[0]):
+                for j in range(network.fc2.weight.shape[1]):
+                    edges_1 = edges_1.append(
+                        {"u": j, "v": i + network.fc2.weight.shape[1], "lw": 0.0},
+                        ignore_index=True,
+                    )
+            edges_1["u"] = edges_1["u"].astype(int)
+            edges_1["v"] = edges_1["v"].astype(int)
+            edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
+            edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "magenta", "cyan")
+            edges_1["lw"] = edges_1["lw_raw"].abs()
+            edges = pd.concat([edges_0, edges_1], 0)
+            edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
+        else:
+            # Only layer
+            edges = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
+            for i in range(network.fc2.weight.shape[0]):
+                for j in range(-network.fc2.weight.shape[1], 0):
+                    edges = edges.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
+            edges["u"] = edges["u"].astype(int)
+            edges["v"] = edges["v"].astype(int)
+            edges["lw_raw"] = network.fc2.weight.view(-1).tolist()
+            edges["color"] = np.where(edges["lw_raw"] > 0, "magenta", "cyan")
+            edges["lw"] = edges["lw_raw"].abs()
+            edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
+
+        # Vertices
+        k = 0
+        # Input layer
+        if network.neuron1 is not None:
+            vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
             for j in range(-network.fc1.weight.shape[1], 0):
-                edges_0 = edges_0.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
-        edges_0["u"] = edges_0["u"].astype(int)
-        edges_0["v"] = edges_0["v"].astype(int)
-        edges_0["lw_raw"] = network.fc1.weight.view(-1).tolist()
-        edges_0["color"] = np.where(edges_0["lw_raw"] > 0, "magenta", "cyan")
-        edges_0["lw"] = edges_0["lw_raw"].abs()
-        # Second layer
-        edges_1 = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
-        for i in range(network.fc2.weight.shape[0]):
-            for j in range(network.fc2.weight.shape[1]):
-                edges_1 = edges_1.append(
-                    {"u": j, "v": i + network.fc2.weight.shape[1], "lw": 0.0},
+                vertices_0 = vertices_0.append(
+                    {
+                        "id": j,
+                        "x": 0.0,
+                        "y": network.fc1.weight.shape[1] / 4
+                        - 0.25
+                        - 0.5 * (network.fc1.weight.shape[1] + j),
+                        "color": "cyan",
+                    },
                     ignore_index=True,
                 )
-        edges_1["u"] = edges_1["u"].astype(int)
-        edges_1["v"] = edges_1["v"].astype(int)
-        edges_1["lw_raw"] = network.fc2.weight.view(-1).tolist()
-        edges_1["color"] = np.where(edges_1["lw_raw"] > 0, "magenta", "cyan")
-        edges_1["lw"] = edges_1["lw_raw"].abs()
-        edges = pd.concat([edges_0, edges_1], 0)
-        edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
-    else:
-        # Only layer
-        edges = pd.DataFrame(columns=["u", "v", "lw_raw", "color", "lw"])
-        for i in range(network.fc2.weight.shape[0]):
+        else:
+            vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
             for j in range(-network.fc2.weight.shape[1], 0):
-                edges = edges.append({"u": j, "v": i, "lw": 0.0}, ignore_index=True)
-        edges["u"] = edges["u"].astype(int)
-        edges["v"] = edges["v"].astype(int)
-        edges["lw_raw"] = network.fc2.weight.view(-1).tolist()
-        edges["color"] = np.where(edges["lw_raw"] > 0, "magenta", "cyan")
-        edges["lw"] = edges["lw_raw"].abs()
-        edges.to_csv(str(save_folder) + f"/network_edges.csv", index=False, sep=",")
-
-    # Vertices
-    k = 0
-    # Input layer
-    if network.neuron1 is not None:
-        vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
-        for j in range(-network.fc1.weight.shape[1], 0):
-            vertices_0 = vertices_0.append(
-                {
-                    "id": j,
-                    "x": 0.0,
-                    "y": network.fc1.weight.shape[1] / 4
-                    - 0.25
-                    - 0.5 * (network.fc1.weight.shape[1] + j),
-                    "color": "cyan",
-                },
-                ignore_index=True,
-            )
-    else:
-        vertices_0 = pd.DataFrame(columns=["id", "x", "y", "color"])
-        for j in range(-network.fc2.weight.shape[1], 0):
-            vertices_0 = vertices_0.append(
-                {
-                    "id": j,
-                    "x": 0.0,
-                    "y": network.fc2.weight.shape[1] / 4
-                    - 0.25
-                    - 0.5 * (network.fc2.weight.shape[1] + j),
-                    "color": "cyan",
-                },
-                ignore_index=True,
-            )
-    # Hidden layer
-    if network.neuron1 is not None:
-        vertices_1 = pd.DataFrame(columns=["id", "x", "y", "color"])
-        for j in range(network.fc2.weight.shape[1]):
-            vertices_1 = vertices_1.append(
-                {
-                    "id": j,
-                    "x": 2.0,
-                    "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
-                    "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
-                },
-                ignore_index=True,
-            )
-            k += 1
-    # Output layer
-    vertices_2 = pd.DataFrame(columns=["id", "x", "y", "color"])
-    vertices_2 = vertices_2.append(
-        {
-            "id": k,
-            "x": 4.0 if network.neuron1 is not None else 2.0,
-            "y": 0.0,
-            "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
-        },
-        ignore_index=True,
-    )
-    if network.neuron1 is not None:
-        vertices = pd.concat([vertices_0, vertices_1, vertices_2], 0)
-    else:
-        vertices = pd.concat([vertices_0, vertices_2], 0)
-    vertices.to_csv(str(save_folder) + f"/network_vertices.csv", index=False, sep=",")
+                vertices_0 = vertices_0.append(
+                    {
+                        "id": j,
+                        "x": 0.0,
+                        "y": network.fc2.weight.shape[1] / 4
+                        - 0.25
+                        - 0.5 * (network.fc2.weight.shape[1] + j),
+                        "color": "cyan",
+                    },
+                    ignore_index=True,
+                )
+        # Hidden layer
+        if network.neuron1 is not None:
+            vertices_1 = pd.DataFrame(columns=["id", "x", "y", "color"])
+            for j in range(network.fc2.weight.shape[1]):
+                vertices_1 = vertices_1.append(
+                    {
+                        "id": j,
+                        "x": 2.0,
+                        "y": network.fc2.weight.shape[1] / 4 - 0.25 - 0.5 * j,
+                        "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
+                    },
+                    ignore_index=True,
+                )
+                k += 1
+        # Output layer
+        vertices_2 = pd.DataFrame(columns=["id", "x", "y", "color"])
+        vertices_2 = vertices_2.append(
+            {
+                "id": k,
+                "x": 4.0 if network.neuron1 is not None else 2.0,
+                "y": 0.0,
+                "color": f"cyan!{100 - 3.333 * rates['mean_time'][k]}!magenta",
+            },
+            ignore_index=True,
+        )
+        if network.neuron1 is not None:
+            vertices = pd.concat([vertices_0, vertices_1, vertices_2], 0)
+        else:
+            vertices = pd.concat([vertices_0, vertices_2], 0)
+        vertices.to_csv(
+            str(save_folder) + f"/network_vertices.csv", index=False, sep=","
+        )
 
     # Add grid
     for ax in axs_p:

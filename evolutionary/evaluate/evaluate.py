@@ -34,6 +34,11 @@ def evaluate(valid_objectives, config, envs, h0, individual):
             # Increment divergence SSE
             if env.t > config["env"]["settle"]:
                 objectives["SSE D0.5"] += (0.5 - env.div_ph[0]) ** 2
+                objectives["SSE D1"] += (1 - env.div_ph[0]) ** 2
+
+            # Increment hdot: stimulate going down instead of up
+            if env.state[1] > 0.0:
+                objectives["hdot"] += 10.0
 
         # Increment other scores
         # Time to land, final height and final velocity

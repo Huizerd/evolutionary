@@ -64,10 +64,10 @@ def main(config, verbose):
         "final velocity squared",
         "spikes",
         "SSE D0.5",
+        "SSE D1",
+        "hdot",
+        "dummy",
     ]
-    assert (
-        len(config["evo"]["objectives"]) >= 3
-    ), "Only 3 or more objectives are supported"
     assert len(config["evo"]["objectives"]) == len(
         config["evo"]["obj weights"]
     ), "There should be as many weights as objectives"

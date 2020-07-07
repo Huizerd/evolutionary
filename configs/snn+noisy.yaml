@@ -1,5 +1,5 @@
-#### Case 8 ####
-# - SNN without hidden neurons
+#### Case 7 ####
+# - SNN with 1 hidden neuron
 # - alphas and taus per neuron, but clamped to prevent
 #    complete decay and promote smooth control
 # - all parameters evolved
@@ -9,7 +9,7 @@
 log location: logs/cases/
 log interval: 50
 evo:
-  gens: 400
+  gens: 200
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
@@ -22,11 +22,11 @@ evo:
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]
-  noise: [0.05, 0.15]
-  noise p: [0.0, 0.25]
+  noise: [0.2, 0.4]
+  noise p: [0.1, 0.25]
   g: 9.81
   g bounds: [-0.8, 0.5]
-  thrust tc: [0.005, 0.04]
+  thrust tc: [0.05, 0.1]
   settle: 0.5
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
@@ -38,7 +38,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 0
+  hidden size: 1
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]
