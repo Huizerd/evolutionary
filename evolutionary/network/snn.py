@@ -85,6 +85,8 @@ class SNN(SNNNetwork):
             inputs = 2
         elif self.encoding == "place uniform" or self.encoding == "place cubic":
             inputs = config["net"]["input size"]
+        elif self.encoding == "both nosplit":
+            inputs = 2
         else:
             raise ValueError("Invalid encoding")
         if self.decoding == "single trace":
@@ -278,6 +280,9 @@ class SNN(SNNNetwork):
                 )
                 / (2.0 * self.in_sigma ** 2)
             )
+            return self.input
+        elif self.encoding == "both nosplit":
+            self.input = input
             return self.input
 
     def _scale_output(self, output):

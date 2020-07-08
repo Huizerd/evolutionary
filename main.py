@@ -66,6 +66,7 @@ def main(config, verbose):
         "SSE D0.5",
         "SSE D1",
         "hdot",
+        "hnogo",
         "dummy",
     ]
     assert len(config["evo"]["objectives"]) == len(

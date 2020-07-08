@@ -39,6 +39,9 @@ def evaluate(valid_objectives, config, envs, h0, individual):
             # Increment hdot: stimulate going down instead of up
             if env.state[1] > 0.0:
                 objectives["hdot"] += 10.0
+            # Increment hnogo: don't go above starting altitude!
+            if env.state[0] > h:
+                objectives["hnogo"] += 10.0
 
         # Increment other scores
         # Time to land, final height and final velocity
