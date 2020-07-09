@@ -5,7 +5,7 @@ evo:
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
-  types: [all, clamped]
+  types: [all]
   obj weights: [-1.0, -1.0]
   obj optimal: [[0.0, 0.0]]
   obj worst: [10000.0, 0.0]
@@ -16,8 +16,8 @@ env:
   delay: [1, 4]
   noise: [0.05, 0.15]
   noise p: [0.0, 0.25]
-  g: 9.81
-  g bounds: [-0.8, 0.5]
+  g: 1.0
+  g bounds: [-7.848, 4.905]
   thrust tc: [0.005, 0.04]
   settle: 0.5
   wind: 0.1
@@ -49,4 +49,4 @@ net:
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
   encoding: both nosplit
-  decoding: single trace
+  decoding: nonspiking

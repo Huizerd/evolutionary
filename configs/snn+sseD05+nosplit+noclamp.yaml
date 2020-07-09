@@ -5,7 +5,7 @@ evo:
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
-  types: [all, clamped]
+  types: [all]
   obj weights: [-1.0, -1.0]
   obj optimal: [[0.0, 0.0]]
   obj worst: [10000.0, 0.0]

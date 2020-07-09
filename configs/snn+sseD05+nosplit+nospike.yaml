@@ -49,4 +49,4 @@ net:
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
   encoding: both nosplit
-  decoding: single trace
+  decoding: nonspiking

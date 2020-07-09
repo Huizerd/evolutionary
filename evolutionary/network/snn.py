@@ -95,6 +95,8 @@ class SNN(SNNNetwork):
             outputs = 2
         elif self.decoding == "weighted trace":
             outputs = 5
+        elif self.decoding == "nonspiking":
+            outputs = 1
         else:
             raise ValueError("Invalid decoding")
 
@@ -126,8 +128,11 @@ class SNN(SNNNetwork):
         if self.neuron1 is not None:
             self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
             self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
+            self.fc1.reset_weights(a=-1.0, b=1.0)
+            self.fc2.reset_weights(a=-1.0, b=1.0)
         else:
             self.fc2 = Linear(inputs, outputs, *c_dynamics)
+            self.fc2.reset_weights(a=-1.0, b=1.0)
 
     def forward(self, x):
         # Input layer: encoding
@@ -148,7 +153,7 @@ class SNN(SNNNetwork):
         x, _ = self.fc2(spikes, trace)
         _, trace = self.neuron2(x)
 
-        return self._decode(trace)
+        return self._decode(x, trace)
 
     def mutate(self, genes, types, mutation_rate=1.0):
         # Go over all genes that have to be mutated
@@ -290,7 +295,7 @@ class SNN(SNNNetwork):
             output / self.out_scale + self.out_offset
         )
 
-    def _decode(self, out_trace):
+    def _decode(self, out_current, out_trace):
         # Scale single trace
         if self.decoding == "single trace":
             trace = out_trace.view(-1)
@@ -315,3 +320,7 @@ class SNN(SNNNetwork):
                 return output.view(-1)
             else:
                 return torch.tensor([0.0])
+        # Non-spiking decoding
+        elif self.decoding == "nonspiking":
+            current = out_current.sum(-1).view(-1)
+            return self._scale_output(current)
