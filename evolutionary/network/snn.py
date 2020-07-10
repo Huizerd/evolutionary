@@ -49,6 +49,12 @@ class SNN(SNNNetwork):
         # Encoding/decoding
         self.encoding = config["net"]["encoding"]
         self.decoding = config["net"]["decoding"]
+        if "SSE D0.5" in config["evo"]["objectives"]:
+            self.in_offset = 0.5
+        elif "SSE D1" in config["evo"]["objectives"]:
+            self.in_offset = 1.0
+        else:
+            self.in_offset = None
         self.out_scale = config["net"]["output scale"]
         self.out_offset = config["net"]["output offset"]
         self.in_bound = config["net"]["input bound"]
@@ -87,6 +93,8 @@ class SNN(SNNNetwork):
             inputs = config["net"]["input size"]
         elif self.encoding == "both nosplit":
             inputs = 2
+        elif self.encoding == "both offset":
+            inputs = 4
         else:
             raise ValueError("Invalid encoding")
         if self.decoding == "single trace":
@@ -94,7 +102,7 @@ class SNN(SNNNetwork):
         elif self.decoding in ["max trace", "sum trace"]:
             outputs = 2
         elif self.decoding == "weighted trace":
-            outputs = 5
+            outputs = 20
         elif self.decoding == "nonspiking":
             outputs = 1
         else:
@@ -128,11 +136,17 @@ class SNN(SNNNetwork):
         if self.neuron1 is not None:
             self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
             self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
-            self.fc1.reset_weights(a=-1.0, b=1.0)
-            self.fc2.reset_weights(a=-1.0, b=1.0)
+            if "symweights" in config["evo"]["types"]:
+                self.fc1.reset_weights(a=-1.0, b=1.0)
+                self.fc2.reset_weights(a=-1.0, b=1.0)
         else:
             self.fc2 = Linear(inputs, outputs, *c_dynamics)
-            self.fc2.reset_weights(a=-1.0, b=1.0)
+            if "symweights" in config["evo"]["types"]:
+                self.fc2.reset_weights(a=-1.0, b=1.0)
+
+        # Randomize initial parameters between ranges
+        if "randomize" in config["evo"]["types"]:
+            self.randomize(config["evo"]["genes"], config["evo"]["types"])
 
     def forward(self, x):
         # Input layer: encoding
@@ -154,6 +168,69 @@ class SNN(SNNNetwork):
         _, trace = self.neuron2(x)
 
         return self._decode(x, trace)
+
+    def randomize(self, genes, types):
+        # Go over all genes that have to be mutated
+        for gene in genes:
+            for child in self.children():
+                if (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" in types
+                    and "clamped" not in types
+                ):
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" in types
+                    and "clamped" in types
+                ):
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
+                    and "all" not in types
+                ):
+                    param = getattr(child, gene)
+                    # Same for all neurons in layer!
+                    # Works because a sensible range for all alphas is [0, 2]
+                    param.fill_(torch.rand(()) * 2.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" in types
+                    and "clamped" not in types
+                ):
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" in types
+                    and "clamped" in types
+                ):
+                    param = getattr(child, gene)
+                    param.uniform_(0.3, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene in ["tau_v", "tau_t", "tau_thresh"]
+                    and "all" not in types
+                ):
+                    param = getattr(child, gene)
+                    # Same for all neurons in layer!
+                    # Works because all taus are [0, 1]
+                    param.fill_(torch.rand(()))
+                elif (
+                    hasattr(child, gene)
+                    and gene == "thresh"
+                    and isinstance(child, LIFNeuron)
+                ):
+                    # Only mutate threshold for non-adaptive neuron
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 1.0)
 
     def mutate(self, genes, types, mutation_rate=1.0):
         # Go over all genes that have to be mutated
@@ -289,6 +366,21 @@ class SNN(SNNNetwork):
         elif self.encoding == "both nosplit":
             self.input = input
             return self.input
+        elif self.encoding == "both offset":
+            # Subtract offset
+            if self.in_offset is not None:
+                input[..., 0] -= self.in_offset
+            else:
+                raise ValueError(
+                    "both offset encoding needs divergence setpoint (SSE D0.5 or SSE D1 as objective)"
+                )
+            # Repeat to have: (div, divdot, div, divdot)
+            self.input = input.repeat(1, 1, 2)
+            # Clamp first half to positive, second half to negative
+            self.input[..., :2].clamp_(min=0.0)
+            self.input[..., 2:].clamp_(max=0.0)
+
+            return self.input.abs()
 
     def _scale_output(self, output):
         return self.out_bounds[0] + (self.out_bounds[1] - self.out_bounds[0]) * (
@@ -313,9 +405,9 @@ class SNN(SNNNetwork):
         # Weighted average of five traces
         elif self.decoding == "weighted trace":
             trace = out_trace.view(-1)
-            if trace.sum() > 0.0:
+            if trace.sum() != 0.0:
                 output = (
-                    trace * torch.linspace(self.out_bounds[0], -self.out_bounds[0], 5)
+                    trace * torch.linspace(self.out_bounds[0], self.out_bounds[1], 20)
                 ).sum() / trace.sum()
                 return output.view(-1)
             else:

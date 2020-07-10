@@ -159,7 +159,10 @@ def plot_performance(folder, parameters):
         axs_p[4].plot(time_list, np.array(obs_list)[:, 1], "C0", label=f"run {i}")
         axs_p[4].plot(time_list, np.array(obs_gt_list)[:, 1], "C1", label=f"run {i} GT")
         # Spikes
-        if isinstance(network, SNNNetwork):
+        if (
+            isinstance(network, SNNNetwork)
+            and config["net"]["decoding"] != "weighted trace"
+        ):
             axs_p[5].plot(
                 time_list,
                 np.array(spike_list)[:, 0] / np.array(time_list),
@@ -242,7 +245,10 @@ def plot_performance(folder, parameters):
             data.to_csv(str(save_folder) + f"/run{i}.csv", index=False, sep=",")
 
     # Compute rates
-    if isinstance(network, SNNNetwork):
+    if (
+        isinstance(network, SNNNetwork)
+        and config["net"]["decoding"] != "weighted trace"
+    ):
         rates = pd.DataFrame(
             {
                 "mean_time": np.array(rates).mean(0)[:, 0],

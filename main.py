@@ -43,7 +43,7 @@ def main(config, verbose):
     last_time = start_time
 
     # MP
-    processes = multiprocessing.cpu_count() // 2
+    processes = multiprocessing.cpu_count()
     pool = multiprocessing.Pool(processes=processes)
 
     # Build network

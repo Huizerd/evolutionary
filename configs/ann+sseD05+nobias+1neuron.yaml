@@ -4,7 +4,7 @@ evo:
   gens: 200
   pop size: 100
   mutation rate: 0.3
-  genes: [weight, bias]
+  genes: [weight]
   types: []
   obj weights: [-1.0, -1.00]
   obj optimal: [[0.0, 0.0]]
@@ -29,5 +29,5 @@ env:
   seeds: 100
 net:
   network: ANN
-  hidden size: 20
+  hidden size: 1
   encoding: both

@@ -19,8 +19,12 @@ class ANN(nn.Module):
         # Does Kaiming init for weights and biases,
         # while the paper inits the latter as zero
         # https://pouannes.github.io/blog/initialization/#mjx-eqn-eqfwd_K
-        self.fc1 = nn.Linear(inputs, config["net"]["hidden size"])
-        self.fc2 = nn.Linear(config["net"]["hidden size"], 1)
+        if "bias" in config["evo"]["genes"]:
+            self.fc1 = nn.Linear(inputs, config["net"]["hidden size"])
+            self.fc2 = nn.Linear(config["net"]["hidden size"], 1)
+        else:
+            self.fc1 = nn.Linear(inputs, config["net"]["hidden size"], bias=False)
+            self.fc2 = nn.Linear(config["net"]["hidden size"], 1, bias=False)
 
         # Turn off gradients
         for param in self.parameters():
