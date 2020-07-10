@@ -160,8 +160,20 @@ def model_to_header(config, in_file, verbose=2):
         # Write network header file
         # Get data
         centers = network.in_centers.view(-1).tolist()
-        encoding_type = 1 if "place" in network.encoding else 0
+        if "place" in network.encoding:
+            encoding_type = 1
+        elif "offset" in network.encoding:
+            encoding_type = 2
+        else:
+            encoding_type = 0
+        if "single" in network.decoding:
+            decoding_type = 0
+        elif "weighted" in network.decoding:
+            decoding_type = 1
+        else:
+            raise ValueError(f"Incompatible decoding {network.decoding} specified")
         decoding_scale = network.out_scale
+        actions = torch.linspace(*network.out_bounds, 20).tolist()
         in_size = 2
         in_enc_size = network.neuron0.spikes.size(-1)
         hid_size = network.neuron1.spikes.size(-1) if network.neuron1 is not None else 0
@@ -176,7 +188,8 @@ def model_to_header(config, in_file, verbose=2):
                 '#include "neuron_conf_hid.h"',
                 '#include "neuron_conf_out.h"',
                 f"float const centers[] = {{{', '.join([str(c) for c in centers])}}};",
-                f"NetworkConf const conf = {{{encoding_type}, {decoding_scale}, centers, {in_size}, {in_enc_size}, {hid_size}, {out_size}, &conf_inhid, &conf_hid, &conf_hidout, &conf_out}};",
+                f"float const actions[] = {{{', '.join([str(a) for a in actions])}}};",
+                f"NetworkConf const conf = {{{encoding_type}, {decoding_type}, {decoding_scale}, actions, centers, {in_size}, {in_enc_size}, {hid_size}, {out_size}, &conf_inhid, &conf_hid, &conf_hidout, &conf_out}};",
             ]
         else:
             string = [
@@ -185,7 +198,8 @@ def model_to_header(config, in_file, verbose=2):
                 '#include "connection_conf_inout.h"',
                 '#include "neuron_conf_out.h"',
                 f"float const centers[] = {{{', '.join([str(c) for c in centers])}}};",
-                f"NetworkConf const conf = {{{encoding_type}, {decoding_scale}, centers, {in_size}, {in_enc_size}, {out_size}, &conf_inout, &conf_out}};",
+                f"float const actions[] = {{{', '.join([str(a) for a in actions])}}};",
+                f"NetworkConf const conf = {{{encoding_type}, {decoding_type}, {decoding_scale}, actions, centers, {in_size}, {in_enc_size}, {out_size}, &conf_inout, &conf_out}};",
             ]
 
         # Write to file
