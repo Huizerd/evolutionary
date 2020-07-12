@@ -1,4 +1,4 @@
-log location: logs/cases/
+log location: logs/runs/
 log interval: 10
 evo:
   gens: 200

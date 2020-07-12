@@ -63,6 +63,7 @@ def main(config, verbose):
         "final velocity",
         "final velocity squared",
         "spikes",
+        "ASE D0.5",
         "SSE D0.5",
         "SSE D1",
         "hdot",

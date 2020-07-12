@@ -14,6 +14,8 @@ def vis_relevant(population, hof, obj_labels, plot_obj, last=None, verbose=2):
             obj_limits.append(2.0)
         elif obj == "spikes":
             obj_limits.append(200.0)
+        elif obj == "ASE D0.5":
+            obj_limits.append(10.0)
         elif obj == "SSE D0.5":
             obj_limits.append(500.0)
         elif obj == "SSE D1":

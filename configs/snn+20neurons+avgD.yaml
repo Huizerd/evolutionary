@@ -1,4 +1,4 @@
-log location: logs/cases/
+log location: logs/runs/
 log interval: 10
 evo:
   gens: 200
@@ -9,7 +9,7 @@ evo:
   obj weights: [-1.0, -1.0]
   obj optimal: [[0.0, 0.0]]
   obj worst: [10000.0, 0.0]
-  objectives: [SSE D0.5, dummy]
+  objectives: [ASE D0.5, dummy]
   plot: [[0, 1]]  # combinations of objectives to plot
 env:
   # Lists (except thrust bounds) indicate randomization bounds
@@ -49,4 +49,4 @@ net:
   output scale: 1.0  # find proper value for this!
   output offset: 0.0
   encoding: both offset
-  decoding: single trace
+  decoding: weighted trace

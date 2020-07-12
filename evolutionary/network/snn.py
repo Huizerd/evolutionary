@@ -49,7 +49,10 @@ class SNN(SNNNetwork):
         # Encoding/decoding
         self.encoding = config["net"]["encoding"]
         self.decoding = config["net"]["decoding"]
-        if "SSE D0.5" in config["evo"]["objectives"]:
+        if (
+            "SSE D0.5" in config["evo"]["objectives"]
+            or "ASE D0.5" in config["evo"]["objectives"]
+        ):
             self.in_offset = 0.5
         elif "SSE D1" in config["evo"]["objectives"]:
             self.in_offset = 1.0

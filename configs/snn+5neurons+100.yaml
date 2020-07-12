@@ -1,11 +1,11 @@
-log location: logs/cases/
+log location: logs/runs/
 log interval: 10
 evo:
-  gens: 200
+  gens: 100
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
-  types: [all, clamped]
+  types: [all, incremental, randomize, symweights]
   obj weights: [-1.0, -1.0]
   obj optimal: [[0.0, 0.0]]
   obj worst: [10000.0, 0.0]
@@ -30,7 +30,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 20
+  hidden size: 5
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]

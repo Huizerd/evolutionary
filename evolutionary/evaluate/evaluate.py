@@ -14,8 +14,11 @@ def evaluate(valid_objectives, config, envs, h0, individual):
         if isinstance(individual[0], SNNNetwork):
             individual[0].reset_state()
         obs = env.reset(h0=h)
+        if "hmax" in config["env"]:
+            env.MAX_H = config["env"]["hmax"]
         done = False
         spikes = 0
+        se_div05 = 0.0
 
         while not done:
             # Step the environment
@@ -33,6 +36,7 @@ def evaluate(valid_objectives, config, envs, h0, individual):
                 )
             # Increment divergence SSE
             if env.t > config["env"]["settle"]:
+                se_div05 += (0.5 - env.div_ph[0]) ** 2
                 objectives["SSE D0.5"] += (0.5 - env.div_ph[0]) ** 2
                 objectives["SSE D1"] += (1 - env.div_ph[0]) ** 2
 
@@ -61,6 +65,9 @@ def evaluate(valid_objectives, config, envs, h0, individual):
         # Spikes divided by real time to land, because we don't want to overly stimulate
         # too fast landings
         objectives["spikes"] += spikes / (env.t - config["env"]["settle"])
+
+        # Average squared divergence error
+        objectives["ASE D0.5"] += se_div05 / (env.t - config["env"]["settle"])
 
     # Select appropriate objectives
     # List, so order is guaranteed

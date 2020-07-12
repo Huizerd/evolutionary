@@ -1,4 +1,4 @@
-log location: logs/cases/
+log location: logs/runs/
 log interval: 10
 evo:
   gens: 200
@@ -29,5 +29,5 @@ env:
   seeds: 100
 net:
   network: ANN
-  hidden size: 20
+  hidden size: 1
   encoding: both

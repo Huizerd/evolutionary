@@ -1,7 +1,7 @@
-log location: logs/cases/
+log location: logs/runs/
 log interval: 10
 evo:
-  gens: 200
+  gens: 1000
   pop size: 100
   mutation rate: 0.3
   genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
@@ -30,7 +30,7 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: SNN
-  hidden size: 5
+  hidden size: 20
   neuron: [adaptive, regular]
   thresh: [0.2, 0.2]
   v rest: [0.0, 0.0]

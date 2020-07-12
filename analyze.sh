@@ -1,7 +1,7 @@
 #! /usr/bin/env bash
 
 # Check if cases directory exists (and if in correct folder)
-LOGDIR=logs/cases
+LOGDIR=logs/runs
 if [ -d "$LOGDIR" ]; then
   echo "Starting analysis"
 else
