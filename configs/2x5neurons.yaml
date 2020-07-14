@@ -1,0 +1,6 @@
+# 2 hidden layers of 5 neurons
+
+net:
+  network: three-layer SNN
+  layer sizes: [4, 5, 5, 20]
+  neurons: [input, adaptive, adaptive, regular]

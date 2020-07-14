@@ -12,8 +12,6 @@ import matplotlib.pyplot as plt
 
 mpl.rcParams["lines.linewidth"] = 0.8
 
-from pysnn.network import SNNNetwork
-
 from evolutionary.utils.constructors import build_network, build_environment
 from evolutionary.utils.utils import randomize_env
 

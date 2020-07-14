@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 mpl.rcParams["lines.linewidth"] = 0.8
 
 
-def plot_IRL(folder):
+def plot_irl(folder):
     # Find files
     files = glob.glob(folder + "20*.csv")
 
@@ -119,4 +119,4 @@ if __name__ == "__main__":
     args = vars(parser.parse_args())
 
     # Call
-    plot_IRL(args["folder"])
+    plot_irl(args["folder"])

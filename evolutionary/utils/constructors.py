@@ -1,16 +1,15 @@
 from functools import partial
 
-from evolutionary.network.ann import ANN
-from evolutionary.network.snn import SNN
+from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
 from evolutionary.environment.environment import QuadEnv
 
 
 def build_network(config):
     # Select architecture
-    if config["net"]["network"] == "ANN":
-        network = ANN(config)
-    elif config["net"]["network"] == "SNN":
-        network = SNN(config)
+    if config["net"]["network"] == "two-layer SNN":
+        network = TwoLayerSNN(config)
+    elif config["net"]["network"] == "three-layer SNN":
+        network = ThreeLayerSNN(config)
     else:
         raise ValueError("Not a valid network")
 
@@ -19,10 +18,10 @@ def build_network(config):
 
 def build_network_partial(config):
     # Select architecture
-    if config["net"]["network"] == "ANN":
-        network = partial(ANN, config)
-    elif config["net"]["network"] == "SNN":
-        network = partial(SNN, config)
+    if config["net"]["network"] == "two-layer SNN":
+        network = partial(TwoLayerSNN, config)
+    elif config["net"]["network"] == "three-layer SNN":
+        network = partial(ThreeLayerSNN, config)
     else:
         raise ValueError("Not a valid network")
 
@@ -44,7 +43,6 @@ def build_environment(config):
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
         dt=config["env"]["dt"][0],
-        ds_act=config["env"]["ds act"][0],
         jitter=config["env"]["jitter"][0],
         max_t=config["env"]["max time"],
         seed=None,

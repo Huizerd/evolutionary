@@ -5,325 +5,143 @@ from pysnn.connection import Linear
 from pysnn.neuron import Input, AdaptiveLIFNeuron, LIFNeuron
 
 
-class SNN(SNNNetwork):
+class TwoLayerSNN(SNNNetwork):
     def __init__(self, config):
-        super(SNN, self).__init__()
+        super(TwoLayerSNN, self).__init__()
+
+        # Check network sizes
+        self._check_sizes(config["net"])
 
         # Get configuration parameters for connections and neurons
-        # Trace parameters for input neurons don't matter, unused anyway
-        n_in_dynamics = [
-            config["net"]["dt"],
-            torch.tensor(config["net"]["alpha t"][0][0])
-            if isinstance(config["net"]["alpha t"][0], list)
-            else torch.tensor(config["net"]["alpha t"][0]),
-            torch.tensor(config["net"]["tau t"][0][0])
-            if isinstance(config["net"]["tau t"][0], list)
-            else torch.tensor(config["net"]["tau t"][0]),
-        ]
-        n_hid_dynamics = [
-            config["net"]["thresh"][0],
-            config["net"]["v rest"][0],
-            torch.tensor(config["net"]["alpha v"][0]),
-            torch.tensor(config["net"]["alpha t"][0]),
-            config["net"]["dt"],
-            config["net"]["refrac"][0],
-            torch.tensor(config["net"]["tau v"][0]),
-            torch.tensor(config["net"]["tau t"][0]),
-            torch.tensor(config["net"]["alpha thresh"][0]),
-            torch.tensor(config["net"]["tau thresh"][0]),
-        ]
-        n_out_dynamics = [
-            config["net"]["thresh"][1],
-            config["net"]["v rest"][1],
-            torch.tensor(config["net"]["alpha v"][1]),
-            torch.tensor(config["net"]["alpha t"][1]),
-            config["net"]["dt"],
-            config["net"]["refrac"][1],
-            torch.tensor(config["net"]["tau v"][1]),
-            torch.tensor(config["net"]["tau t"][1]),
-            torch.tensor(config["net"]["alpha thresh"][1]),
-            torch.tensor(config["net"]["tau thresh"][1]),
-        ]
-        c_dynamics = [1, config["net"]["dt"], config["net"]["delay"]]
+        # Parameters we evolve are set to 0; they will be randomized later
+        # Except thresh for AdaptiveLIF, which is the value for resetting the adaptive threshold
+        # dt, alpha_t, tau_t
+        n_in_dynamics = [1, 0.0, 0.0]
+        # thresh, v_rest, alpha_v, alpha_t, dt, refrac, tau_v, tau_t
+        n_lif_dynamics = [0.0, 0.0, 0.0, 0.0, 1, 0, 0.0, 0.0]
+        # thresh, v_rest, alpha_v, alpha_t, dt, refrac, tau_v, tau_t, alpha_thresh, tau_thresh
+        n_alif_dynamics = [0.2, 0.0, 0.0, 0.0, 1, 0, 0.0, 0.0, 0.0, 0.0]
+        # batch_size, dt, delay
+        c_dynamics = [1, 1, 0]
 
-        # Encoding/decoding
+        # Encoding
         self.encoding = config["net"]["encoding"]
-        self.decoding = config["net"]["decoding"]
-        if (
-            "SSE D0.5" in config["evo"]["objectives"]
-            or "ASE D0.5" in config["evo"]["objectives"]
-        ):
-            self.in_offset = 0.5
-        elif "SSE D1" in config["evo"]["objectives"]:
-            self.in_offset = 1.0
-        else:
-            self.in_offset = None
-        self.out_scale = config["net"]["output scale"]
-        self.out_offset = config["net"]["output offset"]
-        self.in_bound = config["net"]["input bound"]
-        self.in_scale = config["net"]["input scale"]
-        self.in_size = config["net"]["input size"]
-        self.in_sigma = (
-            config["net"]["input bound"] * 2 / (config["net"]["input size"] - 1)
-        )
-        if self.encoding == "place cubic":
-            self.in_centers = (
-                torch.pow(
-                    torch.linspace(
-                        -config["net"]["input bound"],
-                        config["net"]["input bound"],
-                        config["net"]["input size"],
-                    ),
-                    3,
-                )
-                / (config["net"]["input bound"] ** 2)
-            ).view(1, 1, config["net"]["input size"])
-        else:
-            self.in_centers = torch.linspace(
-                -config["net"]["input bound"],
-                config["net"]["input bound"],
-                config["net"]["input size"],
-            ).view(1, 1, config["net"]["input size"])
+        self.setpoint = config["evo"]["D setpoint"]
 
+        # Decoding
+        self.decoding = config["net"]["decoding"]
         self.out_bounds = config["env"]["g bounds"]
 
-        # Input/output layer size (related to encoding/decoding)
-        if self.encoding == "both":
-            inputs = 4
-        elif self.encoding == "divergence":
-            inputs = 2
-        elif self.encoding == "place uniform" or self.encoding == "place cubic":
-            inputs = config["net"]["input size"]
-        elif self.encoding == "both nosplit":
-            inputs = 2
-        elif self.encoding == "both offset":
-            inputs = 4
+        # Neurons and connections
+        self._build_network(
+            config["net"], n_in_dynamics, n_lif_dynamics, n_alif_dynamics, c_dynamics
+        )
+
+        # Randomize initial parameters
+        self._randomize_weights(-1.0, 1.0)
+        self._randomize_neurons(config["evo"]["genes"])
+
+    def _check_sizes(self, config):
+        # Check encoding and input size
+        if config["encoding"] == "both" or config["encoding"] == "both setpoint":
+            assert (
+                config["layer sizes"][0] == 4
+            ), "'both'/'both setpoint' encodings needs input size of 4"
+        elif config["encoding"] == "divergence":
+            assert (
+                config["layer sizes"][0] == 2
+            ), "'divergence' encoding needs input size of 2"
         else:
             raise ValueError("Invalid encoding")
-        if self.decoding == "single trace":
-            outputs = 1
-        elif self.decoding in ["max trace", "sum trace"]:
-            outputs = 2
-        elif self.decoding == "weighted trace":
-            outputs = 20
-        elif self.decoding == "nonspiking":
-            outputs = 1
+
+        # Check decoding
+        if config["decoding"] == "weighted trace":
+            pass
         else:
             raise ValueError("Invalid decoding")
 
-        # Neurons
-        self.neuron0 = Input((1, 1, inputs), *n_in_dynamics)
-
-        if config["net"]["hidden size"] > 0:
-            if config["net"]["neuron"][0] == "regular":
-                self.neuron1 = LIFNeuron(
-                    (1, 1, config["net"]["hidden size"]), *n_hid_dynamics[:-2]
-                )
-            elif config["net"]["neuron"][0] == "adaptive":
-                self.neuron1 = AdaptiveLIFNeuron(
-                    (1, 1, config["net"]["hidden size"]), *n_hid_dynamics
-                )
-            else:
-                raise ValueError("Invalid neuron type for hidden layer")
+    def _build_network(
+        self, config, n_in_dynamics, n_lif_dynamics, n_alif_dynamics, c_dynamics
+    ):
+        # Input
+        if config["neurons"][0] == "input":
+            self.neuron0 = Input((1, 1, config["layer sizes"][0]), *n_in_dynamics)
         else:
-            self.neuron1 = None
+            raise ValueError("Invalid neuron type for input layer")
 
-        if config["net"]["neuron"][1] == "regular":
-            self.neuron2 = LIFNeuron((1, 1, outputs), *n_out_dynamics[:-2])
-        elif config["net"]["neuron"][1] == "adaptive":
-            self.neuron2 = AdaptiveLIFNeuron((1, 1, outputs), *n_out_dynamics)
+        # Hidden
+        if config["neurons"][1] == "regular":
+            self.neuron1 = LIFNeuron((1, 1, config["layer sizes"][1]), *n_lif_dynamics)
+        elif config["neurons"][1] == "adaptive":
+            self.neuron1 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][1]), *n_alif_dynamics
+            )
+        else:
+            raise ValueError("Invalid neuron type for hidden layer")
+
+        # Output
+        if config["neurons"][2] == "regular":
+            self.neuron2 = LIFNeuron((1, 1, config["layer sizes"][2]), *n_lif_dynamics)
+        elif config["neurons"][2] == "adaptive":
+            self.neuron2 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][2]), *n_alif_dynamics
+            )
         else:
             raise ValueError("Invalid neuron type for output layer")
 
         # Connections
-        if self.neuron1 is not None:
-            self.fc1 = Linear(inputs, config["net"]["hidden size"], *c_dynamics)
-            self.fc2 = Linear(config["net"]["hidden size"], outputs, *c_dynamics)
-            if "symweights" in config["evo"]["types"]:
-                self.fc1.reset_weights(a=-1.0, b=1.0)
-                self.fc2.reset_weights(a=-1.0, b=1.0)
-        else:
-            self.fc2 = Linear(inputs, outputs, *c_dynamics)
-            if "symweights" in config["evo"]["types"]:
-                self.fc2.reset_weights(a=-1.0, b=1.0)
-
-        # Randomize initial parameters between ranges
-        if "randomize" in config["evo"]["types"]:
-            self.randomize(config["evo"]["genes"], config["evo"]["types"])
+        self.fc1 = Linear(
+            config["layer sizes"][0], config["layer sizes"][1], *c_dynamics
+        )
+        self.fc2 = Linear(
+            config["layer sizes"][1], config["layer sizes"][2], *c_dynamics
+        )
 
     def forward(self, x):
-        # Input layer: encoding
+        # Encoding
         x = self._encode(x)
-        spikes, trace = self.neuron0(
-            x
-        )  # spikes == x as above (just fed through, and not actually spikes)
+
+        # Input layer
+        x, trace = self.neuron0(x)
 
         # Hidden layer
-        # So actually, divergence * weight is direct input current to neurons here
-        # So I might as well not change anything about the parameters there!
-        # Connection trace is not used (2nd argument)
-        if self.neuron1 is not None:
-            x, _ = self.fc1(spikes, trace)
-            spikes, trace = self.neuron1(x)
+        x, _ = self.fc1(x, trace)
+        spikes, trace = self.neuron1(x)
 
         # Output layer
         x, _ = self.fc2(spikes, trace)
         _, trace = self.neuron2(x)
 
-        return self._decode(x, trace)
+        # Decoding
+        return self._decode(trace)
 
-    def randomize(self, genes, types):
+    def mutate(self, genes, mutation_rate=1.0):
         # Go over all genes that have to be mutated
         for gene in genes:
             for child in self.children():
-                if (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" in types
-                    and "clamped" not in types
-                ):
-                    param = getattr(child, gene)
-                    param.uniform_(0.0, 2.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" in types
-                    and "clamped" in types
-                ):
-                    param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" not in types
-                ):
-                    param = getattr(child, gene)
-                    # Same for all neurons in layer!
-                    # Works because a sensible range for all alphas is [0, 2]
-                    param.fill_(torch.rand(()) * 2.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" in types
-                    and "clamped" not in types
-                ):
-                    param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" in types
-                    and "clamped" in types
-                ):
-                    param = getattr(child, gene)
-                    param.uniform_(0.3, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" not in types
-                ):
-                    param = getattr(child, gene)
-                    # Same for all neurons in layer!
-                    # Works because all taus are [0, 1]
-                    param.fill_(torch.rand(()))
-                elif (
-                    hasattr(child, gene)
-                    and gene == "thresh"
-                    and isinstance(child, LIFNeuron)
-                ):
-                    # Only mutate threshold for non-adaptive neuron
-                    param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
-
-    def mutate(self, genes, types, mutation_rate=1.0):
-        # Go over all genes that have to be mutated
-        for gene in genes:
-            for child in self.children():
-                if (
-                    hasattr(child, gene)
-                    and gene == "weight"
-                    and "incremental" not in types
-                ):
-                    param = getattr(child, gene)
-                    # Uniform in range [-w - 0.05, 2w + 0.05]
-                    mutation = (3.0 * torch.rand_like(param) - 1.0) * param + (
-                        2.0 * torch.rand_like(param) - 1.0
-                    ) * 0.05
-                    mask = torch.rand_like(param) < mutation_rate
-                    param.masked_scatter_(mask, mutation)
-                elif (
-                    hasattr(child, gene) and gene == "weight" and "incremental" in types
-                ):
+                if hasattr(child, gene) and gene == "weight":
                     param = getattr(child, gene)
                     # Uniform increase/decrease from [-1, 1]
                     param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(-3.0, 3.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" in types
-                    and "clamped" not in types
-                ):
+                elif hasattr(child, gene) and gene in [
+                    "alpha_v",
+                    "alpha_t",
+                    "alpha_thresh",
+                ]:
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 2.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" in types
-                    and "clamped" in types
-                ):
+                elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["alpha_v", "alpha_t", "alpha_thresh"]
-                    and "all" not in types
-                ):
-                    param = getattr(child, gene)
-                    if torch.rand(()) < mutation_rate:
-                        # Same for all neurons in layer!
-                        # Works because a sensible range for all alphas is [0, 2]
-                        param.fill_(torch.rand(()) * 2.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" in types
-                    and "clamped" not in types
-                ):
-                    param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" in types
-                    and "clamped" in types
-                ):
-                    param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.3, 1.0)
-                elif (
-                    hasattr(child, gene)
-                    and gene in ["tau_v", "tau_t", "tau_thresh"]
-                    and "all" not in types
-                ):
-                    param = getattr(child, gene)
-                    if torch.rand(()) < mutation_rate:
-                        # Same for all neurons in layer!
-                        # Works because all taus are [0, 1]
-                        param.fill_(torch.rand(()))
                 elif (
                     hasattr(child, gene)
                     and gene == "thresh"
@@ -335,6 +153,33 @@ class SNN(SNNNetwork):
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 1.0)
+
+    def _randomize_weights(self, low, high):
+        self.fc1.reset_weights(a=low, b=high)
+        self.fc2.reset_weights(a=low, b=high)
+
+    def _randomize_neurons(self, genes):
+        # Go over all genes that have to be mutated
+        for gene in genes:
+            for child in self.children():
+                if hasattr(child, gene) and gene in [
+                    "alpha_v",
+                    "alpha_t",
+                    "alpha_thresh",
+                ]:
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 2.0)
+                elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 1.0)
+                elif (
+                    hasattr(child, gene)
+                    and gene == "thresh"
+                    and isinstance(child, LIFNeuron)
+                ):
+                    # Only mutate threshold for non-adaptive neuron
+                    param = getattr(child, gene)
+                    param.uniform_(0.0, 1.0)
 
     def _encode(self, input):
         if self.encoding == "both":
@@ -351,32 +196,9 @@ class SNN(SNNNetwork):
             self.input[..., :1].clamp_(min=0.0)
             self.input[..., 1:].clamp_(max=0.0)
             return self.input.abs()
-        elif self.encoding == "place uniform" or self.encoding == "place cubic":
-            # Don't repeat here, but in place centers (more efficient)
-            # Works, because we take only divergence, so input has shape (1, 1, 1) and
-            # in_centers has shape (1, 1, centers)
-            self.input = self.in_scale * torch.exp(
-                -(
-                    (
-                        input[..., 0].clamp_(-self.in_bound, self.in_bound)
-                        - self.in_centers
-                    )
-                    ** 2
-                )
-                / (2.0 * self.in_sigma ** 2)
-            )
-            return self.input
-        elif self.encoding == "both nosplit":
-            self.input = input
-            return self.input
-        elif self.encoding == "both offset":
-            # Subtract offset
-            if self.in_offset is not None:
-                input[..., 0] -= self.in_offset
-            else:
-                raise ValueError(
-                    "both offset encoding needs divergence setpoint (SSE D0.5 or SSE D1 as objective)"
-                )
+        elif self.encoding == "both setpoint":
+            # Subtract setpoint
+            input[..., 0] -= self.setpoint
             # Repeat to have: (div, divdot, div, divdot)
             self.input = input.repeat(1, 1, 2)
             # Clamp first half to positive, second half to negative
@@ -385,37 +207,96 @@ class SNN(SNNNetwork):
 
             return self.input.abs()
 
-    def _scale_output(self, output):
-        return self.out_bounds[0] + (self.out_bounds[1] - self.out_bounds[0]) * (
-            output / self.out_scale + self.out_offset
-        )
-
-    def _decode(self, out_current, out_trace):
-        # Scale single trace
-        if self.decoding == "single trace":
-            trace = out_trace.view(-1)
-            return self._scale_output(trace)
-        # Maximum of two traces
-        elif self.decoding == "max trace":
-            trace = out_trace.view(-1)
-            output = trace * torch.tensor(self.out_bounds)
-            return output[trace.argmax()].view(-1)
-        # Sum of two traces (one for positive, one for negative)
-        elif self.decoding == "sum trace":
-            trace = out_trace.view(-1)
-            output = (trace - trace.flip(0)).abs() * torch.tensor(self.out_bounds)
-            return output[trace.argmax()].view(-1)
-        # Weighted average of five traces
-        elif self.decoding == "weighted trace":
+    def _decode(self, out_trace):
+        # Weighted average of traces
+        if self.decoding == "weighted trace":
             trace = out_trace.view(-1)
             if trace.sum() != 0.0:
                 output = (
-                    trace * torch.linspace(self.out_bounds[0], self.out_bounds[1], 20)
+                    trace
+                    * torch.linspace(
+                        self.out_bounds[0], self.out_bounds[1], trace.shape[0]
+                    )
                 ).sum() / trace.sum()
                 return output.view(-1)
             else:
                 return torch.tensor([0.0])
-        # Non-spiking decoding
-        elif self.decoding == "nonspiking":
-            current = out_current.sum(-1).view(-1)
-            return self._scale_output(current)
+
+
+class ThreeLayerSNN(TwoLayerSNN):
+    def _build_network(
+        self, config, n_in_dynamics, n_lif_dynamics, n_alif_dynamics, c_dynamics
+    ):
+        # Input
+        if config["neurons"][0] == "input":
+            self.neuron0 = Input((1, 1, config["layer sizes"][0]), *n_in_dynamics)
+        else:
+            raise ValueError("Invalid neuron type for input layer")
+
+        # Hidden 1
+        if config["neurons"][1] == "regular":
+            self.neuron1 = LIFNeuron((1, 1, config["layer sizes"][1]), *n_lif_dynamics)
+        elif config["neurons"][1] == "adaptive":
+            self.neuron1 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][1]), *n_alif_dynamics
+            )
+        else:
+            raise ValueError("Invalid neuron type for first hidden layer")
+
+        # Hidden 2
+        if config["neurons"][2] == "regular":
+            self.neuron2 = LIFNeuron((1, 1, config["layer sizes"][2]), *n_lif_dynamics)
+        elif config["neurons"][2] == "adaptive":
+            self.neuron2 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][2]), *n_alif_dynamics
+            )
+        else:
+            raise ValueError("Invalid neuron type for second hidden layer")
+
+        # Output
+        if config["neurons"][3] == "regular":
+            self.neuron3 = LIFNeuron((1, 1, config["layer sizes"][3]), *n_lif_dynamics)
+        elif config["neuron"][3] == "adaptive":
+            self.neuron3 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][3]), *n_alif_dynamics
+            )
+        else:
+            raise ValueError("Invalid neuron type for output layer")
+
+        # Connections
+        self.fc1 = Linear(
+            config["layer sizes"][0], config["layer sizes"][1], *c_dynamics
+        )
+        self.fc2 = Linear(
+            config["layer sizes"][1], config["layer sizes"][2], *c_dynamics
+        )
+        self.fc3 = Linear(
+            config["layer sizes"][2], config["layer sizes"][3], *c_dynamics
+        )
+
+    def forward(self, x):
+        # Encoding
+        x = self._encode(x)
+
+        # Input layer
+        x, trace = self.neuron0(x)
+
+        # First hidden layer
+        x, _ = self.fc1(x, trace)
+        spikes, trace = self.neuron1(x)
+
+        # Second hidden layer
+        x, _ = self.fc2(spikes, trace)
+        spikes, trace = self.neuron2(x)
+
+        # Output layer
+        x, _ = self.fc3(spikes, trace)
+        _, trace = self.neuron3(x)
+
+        # Decoding
+        return self._decode(trace)
+
+    def _randomize_weights(self, low, high):
+        self.fc1.reset_weights(a=low, b=high)
+        self.fc2.reset_weights(a=low, b=high)
+        self.fc3.reset_weights(a=low, b=high)

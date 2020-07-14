@@ -14,22 +14,13 @@ import yaml
 import numpy as np
 import pandas as pd
 from deap import base, creator, tools
-from deap.benchmarks.tools import convergence, hypervolume
 
 from evolutionary.evaluate.evaluate import evaluate
 from evolutionary.operators.crossover import crossover_none
 from evolutionary.operators.mutation import mutate_call_network
 from evolutionary.utils.constructors import build_network_partial, build_environment
-from evolutionary.utils.model_to_header import model_to_header
-from evolutionary.utils.utils import randomize_env
-from evolutionary.visualize.vis_network import vis_network
-from evolutionary.visualize.vis_performance import vis_performance, vis_disturbance
-from evolutionary.visualize.vis_steadystate import vis_steadystate
-from evolutionary.visualize.vis_sensitivity import (
-    vis_sensitivity_complete,
-    vis_sensitivity_complete_4m,
-)
-from evolutionary.visualize.vis_population import vis_relevant
+from evolutionary.utils.utils import randomize_env, update
+from evolutionary.visualize.vis_population import vis_population
 
 
 # Suppress scientific notation
@@ -54,36 +45,8 @@ def main(config, verbose):
     for env in envs:
         randomize_env(env, config)
 
-    # Objectives
-    # Time to land, final height, final velocity, spikes per second
-    valid_objectives = [
-        "time to land",
-        "time to land scaled",
-        "final height",
-        "final velocity",
-        "final velocity squared",
-        "spikes",
-        "ASE D0.5",
-        "SSE D0.5",
-        "SSE D1",
-        "hdot",
-        "hnogo",
-        "dummy",
-    ]
-    assert len(config["evo"]["objectives"]) == len(
-        config["evo"]["obj weights"]
-    ), "There should be as many weights as objectives"
-    assert all(
-        [obj in valid_objectives for obj in config["evo"]["objectives"]]
-    ), "Invalid objective"
-
-    # Optimal front and reference point for hypervolume
-    optimal_front = config["evo"]["obj optimal"]
-    hyperref = config["evo"]["obj worst"]
-    optim_performance = []
-
     # Set up DEAP
-    creator.create("Fitness", base.Fitness, weights=config["evo"]["obj weights"])
+    creator.create("Fitness", base.Fitness, weights=[-1.0])
     creator.create("Individual", list, fitness=creator.Fitness)
 
     toolbox = base.Toolbox()
@@ -94,8 +57,7 @@ def main(config, verbose):
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
     toolbox.register(
-        "evaluate",
-        partial(evaluate, valid_objectives, config, envs, config["env"]["h0"]),
+        "evaluate", partial(evaluate, config, envs, config["env"]["h0"]),
     )
     toolbox.register("mate", crossover_none)
     toolbox.register(
@@ -103,7 +65,6 @@ def main(config, verbose):
         partial(
             mutate_call_network,
             config["evo"]["genes"],
-            config["evo"]["types"],
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )
@@ -111,11 +72,11 @@ def main(config, verbose):
     toolbox.register("map", pool.map)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean, axis=0)
-    stats.register("median", np.median, axis=0)
-    stats.register("std", np.std, axis=0)
-    stats.register("min", np.min, axis=0)
-    stats.register("max", np.max, axis=0)
+    stats.register("avg", np.mean)
+    stats.register("median", np.median)
+    stats.register("std", np.std)
+    stats.register("min", np.min)
+    stats.register("max", np.max)
 
     logbook = tools.Logbook()
     logbook.header = ("gen", "evals", "avg", "median", "std", "min", "max")
@@ -150,22 +111,14 @@ def main(config, verbose):
     minutes = (current_time - last_time) / 60
     last_time = time.time()
     time_past = (current_time - start_time) / 60
-    conv = convergence(pareto_fronts[0], optimal_front)
-    hyper = hypervolume(pareto_fronts[0], hyperref)
-    optim_performance.append([0, time_past, minutes, conv, hyper])
     print(
-        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}"
     )
 
     if verbose:
         # Plot relevant part of population fitness
         last_fig = []
-        for dims in config["evo"]["plot"]:
-            last_fig.append(
-                vis_relevant(
-                    population, hof, config["evo"]["objectives"], dims, verbose=verbose
-                )
-            )
+        last_fig.append(vis_population(population, hof, verbose=verbose))
 
         # Create folders for parameters of individuals
         # Only save hall of fame
@@ -175,7 +128,7 @@ def main(config, verbose):
         # Figures
         for i, last in enumerate(last_fig):
             if last[2]:
-                last[0].savefig(f"{config['fig location']}relevant{i}_000.png")
+                last[0].savefig(f"{config['fig location']}population{i}_000.png")
         # Parameters
         for i, ind in enumerate(hof):
             torch.save(
@@ -184,7 +137,8 @@ def main(config, verbose):
             )
         # Fitnesses
         pd.DataFrame(
-            [ind.fitness.values for ind in hof], columns=config["evo"]["objectives"]
+            [ind.fitness.values for ind in hof],
+            columns=[f"SSE D{config['evo']['D setpoint']}"],
         ).to_csv(f"{config['log location']}hof_000/fitnesses.csv", index=False, sep=",")
 
     # Begin the evolution!
@@ -206,8 +160,6 @@ def main(config, verbose):
         selection.extend(tools.selTournamentDCD(others, len(others)))
 
         # Get offspring: mutate selection
-        # TODO: maybe add crossover? Which is usually done binary,
-        #  so maybe not that useful..
         offspring = [
             toolbox.mutate(toolbox.clone(ind)) for ind in selection[: len(population)]
         ]
@@ -246,25 +198,15 @@ def main(config, verbose):
         minutes = (current_time - last_time) / 60
         last_time = time.time()
         time_past = (current_time - start_time) / 60
-        conv = convergence(pareto_fronts[0], optimal_front)
-        hyper = hypervolume(pareto_fronts[0], hyperref)
-        optim_performance.append([gen, time_past, minutes, conv, hyper])
         print(
-            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, convergence: {conv:.3f}, hypervolume: {hyper:.3f}"
+            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}"
         )
 
         if verbose:
             # Plot relevant part of population fitness
-            for i, last, dims in zip(
-                range(len(last_fig)), last_fig, config["evo"]["plot"]
-            ):
-                last_fig[i] = vis_relevant(
-                    population,
-                    hof,
-                    config["evo"]["objectives"],
-                    dims,
-                    last=last,
-                    verbose=verbose,
+            for i, last, in zip(range(len(last_fig)), last_fig):
+                last_fig[i] = vis_population(
+                    population, hof, last=last, verbose=verbose
                 )
 
             # Log every so many generations
@@ -277,7 +219,7 @@ def main(config, verbose):
                 for i, last in enumerate(last_fig):
                     if last[2]:
                         last[0].savefig(
-                            f"{config['fig location']}relevant{i}_{gen:03}.png"
+                            f"{config['fig location']}population{i}_{gen:03}.png"
                         )
 
                 # Save parameters of hall of fame individuals
@@ -290,7 +232,7 @@ def main(config, verbose):
                 # Save fitnesses
                 pd.DataFrame(
                     [ind.fitness.values for ind in hof],
-                    columns=config["evo"]["objectives"],
+                    columns=[f"SSE D{config['evo']['D setpoint']}"],
                 ).to_csv(
                     f"{config['log location']}hof_{gen:03}/fitnesses.csv",
                     index=False,
@@ -302,22 +244,6 @@ def main(config, verbose):
                     f"{config['log location']}logbook.csv", index=False, sep=","
                 )
 
-                # Save optimization performance
-                pd.DataFrame(
-                    optim_performance,
-                    columns=[
-                        "gen",
-                        "time past",
-                        "minutes",
-                        "convergence",
-                        "hypervolume",
-                    ],
-                ).to_csv(
-                    f"{config['log location']}optim_performance.csv",
-                    index=False,
-                    sep=",",
-                )
-
     # Close multiprocessing pool
     pool.close()
 
@@ -325,172 +251,44 @@ def main(config, verbose):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--mode",
-        choices=["train", "test", "analyze", "analyze4m", "save"],
-        default="train",
-    )
     parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
-    parser.add_argument("--config", type=str, default=None)
+    parser.add_argument("--config", type=str, default="configs/defaults.yaml")
     parser.add_argument("--tags", nargs="+", default=None)
-    parser.add_argument("--parameters", type=str, default=None)
     args = vars(parser.parse_args())
 
-    # Modes of execution
-    # Training
-    if args["mode"] == "train":
-        # Read config file
-        assert args["config"] is not None, "Training needs a configuration file"
-        with open(args["config"], "r") as cf:
-            config = yaml.full_load(cf)
+    # Read config file
+    # Merge defaults and specifics
+    with open("configs/defaults.yaml", "r") as f:
+        config = yaml.full_load(f)
+    if args["config"] != "configs/defaults.yaml":
+        with open(args["config"], "r") as f:
+            specifics = yaml.full_load(f)
+        config = update(config, specifics)
 
-        # Check if we supplied tags for identification
-        assert args["tags"] is not None, "Provide tags for identifying a run!"
-        # Start time
-        start_time = time.time()
+    # Check if we supplied tags for identification
+    assert args["tags"] is not None, "Provide tags for identifying a run!"
+    # Start time
+    start_time = time.time()
 
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Create folders, add suffix if necessary
-            config["log location"] += "+".join(args["tags"]) + "+"
-            suffix = 0
-            while os.path.exists(config["log location"] + str(suffix) + "/"):
-                suffix += 1
-            config["log location"] += str(suffix) + "/"
-            config["fig location"] = config["log location"] + "population_figs/"
-            os.makedirs(config["log location"])
-            os.makedirs(config["fig location"])
+    # Don't create/save in case of debugging
+    if args["verbose"]:
+        # Create folders, add suffix if necessary
+        config["log location"] += "+".join(args["tags"]) + "+"
+        suffix = 0
+        while os.path.exists(config["log location"] + str(suffix) + "/"):
+            suffix += 1
+        config["log location"] += str(suffix) + "/"
+        config["fig location"] = config["log location"] + "population_figs/"
+        os.makedirs(config["log location"])
+        os.makedirs(config["fig location"])
 
-            # Save config file and tags there
-            copyfile(args["config"], config["log location"] + "config.yaml")
-            with open(config["log location"] + "tags.txt", "w") as f:
-                f.write(" ".join(args["tags"]))
+        # Save config file and tags there
+        with open(config["log location"] + "config.yaml", "w") as f:
+            yaml.dump(config, f)
+        with open(config["log location"] + "tags.txt", "w") as f:
+            f.write(" ".join(args["tags"]))
 
-        # Run main
-        main(config, args["verbose"])
+    # Run main
+    main(config, args["verbose"])
 
-        print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")
-
-    # Testing
-    elif args["mode"] == "test":
-        # Read config file
-        assert args["config"] is not None, "Testing needs a configuration file"
-        with open(args["config"], "r") as cf:
-            config = yaml.full_load(cf)
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Set log location to the one supplied
-            individual_id = "_".join(
-                [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
-            )
-            config["log location"] = (
-                "/".join(args["config"].split("/")[:-1])
-                + "/test+"
-                + individual_id
-                + "+"
-            )
-            suffix = 0
-            while os.path.exists(config["log location"] + str(suffix) + "/"):
-                suffix += 1
-            config["log location"] += str(suffix) + "/"
-            os.makedirs(config["log location"])
-
-        # Visualize network parameters
-        vis_network(config, args["parameters"], args["verbose"])
-        # Visualize landings and network activity
-        vis_performance(config, args["parameters"], args["verbose"])
-        # Visualize response to a severe disturbance (to see how fast response is)
-        vis_disturbance(config, args["parameters"], args["verbose"])
-        # Visualize steady-state output for certain inputs
-        vis_steadystate(config, args["parameters"], args["verbose"])
-
-    # Analysis
-    elif args["mode"] == "analyze":
-        # Read config file
-        assert args["config"] is not None, "Analysis needs a configuration file"
-        with open(args["config"], "r") as cf:
-            config = yaml.full_load(cf)
-
-        # Check if folder of parameters was supplied
-        assert os.path.isdir(
-            args["parameters"]
-        ), "Provide a folder of parameters for analysis!"
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Set log location to the one supplied
-            folder_id = args["parameters"].split("/")[-2]
-            config["log location"] = (
-                "/".join(args["config"].split("/")[:-1])
-                + "/analysis+"
-                + folder_id
-                + "+"
-            )
-            suffix = 0
-            while os.path.exists(config["log location"] + str(suffix) + "/"):
-                suffix += 1
-            config["log location"] += str(suffix) + "/"
-            os.makedirs(config["log location"])
-
-        # Perform sensitivity analysis
-        vis_sensitivity_complete(config, args["parameters"], args["verbose"])
-
-    # Analysis from 4m
-    elif args["mode"] == "analyze4m":
-        # Read config file
-        assert args["config"] is not None, "Analysis needs a configuration file"
-        with open(args["config"], "r") as cf:
-            config = yaml.full_load(cf)
-
-        # Check if folder of parameters was supplied
-        assert os.path.isdir(
-            args["parameters"]
-        ), "Provide a folder of parameters for analysis!"
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Set log location to the one supplied
-            folder_id = args["parameters"].split("/")[-2]
-            config["log location"] = (
-                "/".join(args["config"].split("/")[:-1])
-                + "/analysis4m+"
-                + folder_id
-                + "+"
-            )
-            suffix = 0
-            while os.path.exists(config["log location"] + str(suffix) + "/"):
-                suffix += 1
-            config["log location"] += str(suffix) + "/"
-            os.makedirs(config["log location"])
-
-        # Perform sensitivity analysis
-        vis_sensitivity_complete_4m(config, args["parameters"], args["verbose"])
-
-    # Save model to text
-    elif args["mode"] == "save":
-        # Read config file
-        assert args["config"] is not None, "Saving needs a configuration file"
-        with open(args["config"], "r") as cf:
-            config = yaml.full_load(cf)
-
-        # Don't create/save in case of debugging
-        if args["verbose"]:
-            # Set log location to the one supplied
-            individual_id = "_".join(
-                [s.replace(".net", "") for s in args["parameters"].split("/")[-2:]]
-            )
-            config["log location"] = (
-                "/".join(args["config"].split("/")[:-1])
-                + "/saved+"
-                + individual_id
-                + "+"
-            )
-            suffix = 0
-            while os.path.exists(config["log location"] + str(suffix) + "/"):
-                suffix += 1
-            config["log location"] += str(suffix) + "/"
-            os.makedirs(config["log location"])
-
-        # Export model to text for use IRL
-        model_to_header(config, args["parameters"], args["verbose"])
+    print(f"Duration: {(time.time() - start_time) / 3600:.2f} hours")

@@ -1,3 +1,5 @@
+from collections.abc import Mapping
+
 import torch
 import numpy as np
 
@@ -9,7 +11,6 @@ def randomize_env(env, config):
     env.noise_p_std = np.random.uniform(*config["env"]["noise p"])
     env.thrust_tc = np.random.uniform(*config["env"]["thrust tc"])
     env.dt = np.random.uniform(*config["env"]["dt"])
-    env.ds_act = np.random.randint(*config["env"]["ds act"])
     env.jitter_prob = np.random.uniform(*config["env"]["jitter"])
     env.seed(np.random.randint(config["env"]["seeds"]))
 
@@ -27,7 +28,6 @@ def getset_env(env, config=None):
         env.noise_p_std = config["noise p"]
         env.thrust_tc = config["thrust tc"]
         env.dt = config["dt"]
-        env.ds_act = config["ds act"]
         env.jitter_prob = config["jitter"]
         env.seed(config["seeds"])
         return env
@@ -38,7 +38,6 @@ def getset_env(env, config=None):
         config["noise p"] = env.noise_p_std
         config["thrust tc"] = env.thrust_tc
         config["dt"] = env.dt
-        config["ds act"] = env.ds_act
         config["jitter"] = env.jitter_prob
         config["seeds"] = env.seeds
         return config
@@ -55,11 +54,10 @@ def is_pareto_efficient(costs):
     return is_efficient
 
 
-def sigmoid(x, y_min, y_step, x_mid, steepness):
-    y = torch.where(
-        x >= 0,
-        y_step / (1 + torch.exp(-steepness * (x - x_mid))) + y_min,
-        (y_step * torch.exp(steepness * x)) / (1 + torch.exp(steepness * (x - x_mid)))
-        + y_min,
-    )
-    return y
+def update(d, u):
+    for k, v in u.items():
+        if isinstance(v, Mapping):
+            d[k] = update(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
