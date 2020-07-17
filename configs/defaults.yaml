@@ -19,6 +19,7 @@ env:
   settle: 0.5
   wind: 0.1
   h0: [2.0, 4.0, 6.0, 8.0]
+  h blind: 5.0
   dt: [0.02, 0.0333]
   jitter: [0.0, 0.2]
   max time: 30.0

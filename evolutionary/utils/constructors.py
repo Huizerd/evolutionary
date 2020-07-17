@@ -42,6 +42,7 @@ def build_environment(config):
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],
         h0=config["env"]["h0"][0],
+        h_blind=config["env"]["h blind"],
         dt=config["env"]["dt"][0],
         jitter=config["env"]["jitter"][0],
         max_t=config["env"]["max time"],
