@@ -51,6 +51,8 @@ class TwoLayerSNN(SNNNetwork):
             assert (
                 config["layer sizes"][0] == 2
             ), "'divergence' encoding needs input size of 2"
+        elif config["encoding"] == "single-spike place":
+            pass
         else:
             raise ValueError("Invalid encoding")
 
@@ -206,6 +208,10 @@ class TwoLayerSNN(SNNNetwork):
             self.input[..., 2:].clamp_(max=0.0)
 
             return self.input.abs()
+
+        elif self.encoding == "single-spike place":
+            # Single spike based on D value in range [-10, 10]
+            pass
 
     def _decode(self, out_trace):
         # Weighted average of traces
