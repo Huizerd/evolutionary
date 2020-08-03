@@ -17,3 +17,22 @@ $ pre-commit install
 ```
 
 Also note that `gcc`, `g++`, `python3-dev` and `build-essential` are needed to compile C/C++ extensions that speed up DEAP, so make sure these are installed on your system. Also, install `python3-matplotlib` to be able to plot 3D figures.
+
+#### Solutions to known issues
+
+- OSError: [Errno 24] Too many open files
+
+Modify `/etc/systemd/user.conf` and `/etc/systemd/system.conf` with the following line (this takes care of graphical login):
+
+```
+DefaultLimitNOFILE=65535
+```
+
+Modify `/etc/security/limits.conf` with the following lines (this takes care of non-GUI login):
+
+```
+* hard nofile 65535
+* soft nofile 65535
+```
+
+where `*` can be replaced with the username. Reboot your computer for changes to take effect.
