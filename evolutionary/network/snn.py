@@ -27,6 +27,11 @@ class TwoLayerSNN(SNNNetwork):
         # Encoding
         self.encoding = config["net"]["encoding"]
         self.setpoint = config["evo"]["D setpoint"]
+        # One less step to also allow coverage for values outside the range
+        self.encs = config["net"]["layer sizes"][0]
+        self.buckets = torch.linspace(
+            -10.0, 10.0, steps=config["net"]["layer sizes"][0] - 1
+        )
 
         # Decoding
         self.decoding = config["net"]["decoding"]
@@ -52,7 +57,9 @@ class TwoLayerSNN(SNNNetwork):
                 config["layer sizes"][0] == 2
             ), "'divergence' encoding needs input size of 2"
         elif config["encoding"] == "single-spike place":
-            pass
+            assert (
+                config["layer sizes"][0] % 2 == 0
+            ), "It makes sense to have an uneven number of bins (so even number of neurons to account for both extremes), such that there is a bound on 0"
         else:
             raise ValueError("Invalid encoding")
 
@@ -191,6 +198,7 @@ class TwoLayerSNN(SNNNetwork):
             self.input[..., :2].clamp_(min=0.0)
             self.input[..., 2:].clamp_(max=0.0)
             return self.input.abs()
+
         elif self.encoding == "divergence":
             # Repeat to have: (div, div)
             self.input = input[..., 0].repeat(1, 1, 2)
@@ -198,6 +206,7 @@ class TwoLayerSNN(SNNNetwork):
             self.input[..., :1].clamp_(min=0.0)
             self.input[..., 1:].clamp_(max=0.0)
             return self.input.abs()
+
         elif self.encoding == "both setpoint":
             # Subtract setpoint
             input[..., 0] -= self.setpoint
@@ -206,12 +215,14 @@ class TwoLayerSNN(SNNNetwork):
             # Clamp first half to positive, second half to negative
             self.input[..., :2].clamp_(min=0.0)
             self.input[..., 2:].clamp_(max=0.0)
-
             return self.input.abs()
 
         elif self.encoding == "single-spike place":
             # Single spike based on D value in range [-10, 10]
-            pass
+            spike = torch.bucketize(input[..., 0], self.buckets)
+            self.input = torch.zeros(1, 1, self.encs)
+            self.input[..., spike] = 1
+            return self.input
 
     def _decode(self, out_trace):
         # Weighted average of traces
