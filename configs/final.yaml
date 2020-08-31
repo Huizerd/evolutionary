@@ -3,7 +3,7 @@
 # alpha [0, 1] instead of [0, 2]
 
 net:
-  layer sizes: [20, 20, 20]
+  layer sizes: [32, 20, 20]
   quantize: True
-  encoding: single-spike place
+  encoding: double float16
 

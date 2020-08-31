@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from pysnn.network import SNNNetwork
 from pysnn.connection import Linear
@@ -61,6 +62,10 @@ class TwoLayerSNN(SNNNetwork):
             assert (
                 config["layer sizes"][0] % 2 == 0
             ), "It makes sense to have an uneven number of bins (so even number of neurons to account for both extremes), such that there is a bound on 0"
+        elif config["encoding"] == "double float16":
+            assert (
+                config["layer sizes"][0] == 32
+            ), "'divergence' encoding needs input size of 32"
         else:
             raise ValueError("Invalid encoding")
 
@@ -241,6 +246,20 @@ class TwoLayerSNN(SNNNetwork):
             spike = torch.bucketize(input[..., 0], self.buckets)
             self.input = torch.zeros(1, 1, self.encs)
             self.input[..., spike] = 1
+            return self.input
+
+        elif self.encoding == "double float16":
+            # Subtract setpoint
+            input[..., 0] -= self.setpoint
+            # Encode both D and Ddot as 16-bit float in binary
+            # Subtract setpoint
+            Dbin = bin(np.float16(input[..., 0].item()).view("H"))[2:].zfill(16)
+            Ddotbin = bin(np.float16(input[..., 1].item()).view("H"))[2:].zfill(16)
+            self.input = input.repeat(1, 1, 16)
+            self.input[..., :16] = torch.from_numpy(np.array(list(Dbin)).astype(float))
+            self.input[..., 16:] = torch.from_numpy(
+                np.array(list(Ddotbin)).astype(float)
+            )
             return self.input
 
     def _decode(self, out_trace):
