@@ -43,6 +43,7 @@ class TwoLayerSNN(SNNNetwork):
         )
 
         # Randomize initial parameters
+        self.quantize = config["net"]["quantize"]
         self._randomize_weights(-1.0, 1.0)
         self._randomize_neurons(config["evo"]["genes"])
 
@@ -130,11 +131,20 @@ class TwoLayerSNN(SNNNetwork):
             for child in self.children():
                 if hasattr(child, gene) and gene == "weight":
                     param = getattr(child, gene)
-                    # Uniform increase/decrease from [-1, 1]
-                    param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(-3.0, 3.0)
+                    if not self.quantize:
+                        # Uniform increase/decrease from [-1, 1]
+                        param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
+                            torch.rand_like(param) < mutation_rate
+                        ).float()
+                        param.clamp_(-3.0, 3.0)
+                    else:
+                        # Uniform increase/decrease from [-80, 80]
+                        param += (
+                            torch.randint_like(param, -80, 81)
+                            * (torch.rand_like(param) < mutation_rate).float()
+                        )
+                        param.clamp(-256, 254)
+                        param += param % 2
                 elif hasattr(child, gene) and gene in [
                     "alpha_v",
                     "alpha_t",
@@ -144,7 +154,7 @@ class TwoLayerSNN(SNNNetwork):
                     param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
-                    param.clamp_(0.0, 2.0)
+                    param.clamp_(0.0, 1.0)
                 elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
@@ -164,8 +174,17 @@ class TwoLayerSNN(SNNNetwork):
                     param.clamp_(0.0, 1.0)
 
     def _randomize_weights(self, low, high):
-        self.fc1.reset_weights(a=low, b=high)
-        self.fc2.reset_weights(a=low, b=high)
+        if not self.quantize:
+            self.fc1.reset_weights(a=low, b=high)
+            self.fc2.reset_weights(a=low, b=high)
+        else:
+            # Init
+            self.fc1.weight.data = torch.randint_like(self.fc1.weight.data, -256, 255)
+            self.fc2.weight.data = torch.randint_like(self.fc2.weight.data, -256, 255)
+            # And round to even numbers only
+            # Bounds are even, so no need for clamp!
+            self.fc1.weight.data += self.fc1.weight.data % 2
+            self.fc2.weight.data += self.fc2.weight.data % 2
 
     def _randomize_neurons(self, genes):
         # Go over all genes that have to be mutated
@@ -177,7 +196,7 @@ class TwoLayerSNN(SNNNetwork):
                     "alpha_thresh",
                 ]:
                     param = getattr(child, gene)
-                    param.uniform_(0.0, 2.0)
+                    param.uniform_(0.0, 1.0)
                 elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
                     param = getattr(child, gene)
                     param.uniform_(0.0, 1.0)
@@ -314,6 +333,17 @@ class ThreeLayerSNN(TwoLayerSNN):
         return self._decode(trace)
 
     def _randomize_weights(self, low, high):
-        self.fc1.reset_weights(a=low, b=high)
-        self.fc2.reset_weights(a=low, b=high)
-        self.fc3.reset_weights(a=low, b=high)
+        if not self.quantize:
+            self.fc1.reset_weights(a=low, b=high)
+            self.fc2.reset_weights(a=low, b=high)
+            self.fc3.reset_weights(a=low, b=high)
+        else:
+            # Init
+            self.fc1.weight.data = torch.randint_like(self.fc1.weight.data, -256, 255)
+            self.fc2.weight.data = torch.randint_like(self.fc2.weight.data, -256, 255)
+            self.fc3.weight.data = torch.randint_like(self.fc3.weight.data, -256, 255)
+            # And round to even numbers only
+            # Bounds are even, so no need for clamp!
+            self.fc1.weight.data += self.fc1.weight.data % 2
+            self.fc2.weight.data += self.fc2.weight.data % 2
+            self.fc3.weight.data += self.fc3.weight.data % 2

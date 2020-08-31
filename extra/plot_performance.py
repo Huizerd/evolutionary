@@ -51,8 +51,8 @@ def plot_performance(folder, parameters):
     axs_p[5].set_xlabel("time [s]")
 
     # Create plot for neurons
-    assert sum(config["net"]["layer sizes"]) <= 50, "Increase figure size on next line"
-    fig_n, axs_n = plt.subplots(10, 5, sharex=True, figsize=(12, 10))
+    assert sum(config["net"]["layer sizes"]) <= 60, "Increase figure size on next line"
+    fig_n, axs_n = plt.subplots(10, 6, sharex=True, figsize=(12, 10))
     axs_n = axs_n.flatten()
 
     # Create list to hold spike rates per neuron

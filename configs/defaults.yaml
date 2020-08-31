@@ -29,5 +29,6 @@ net:
   network: two-layer SNN
   layer sizes: [4, 20, 20]
   neurons: [input, adaptive, regular]
+  quantize: False
   encoding: both setpoint
   decoding: weighted trace
