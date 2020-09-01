@@ -33,6 +33,8 @@ class TwoLayerSNN(SNNNetwork):
         self.buckets = torch.linspace(
             -10.0, 10.0, steps=config["net"]["layer sizes"][0] - 1
         )
+        if config["net"]["encoding"] == "cubed-spike place":
+            self.buckets = torch.pow(self.buckets, 3) / (10 ** 2)
 
         # Decoding
         self.decoding = config["net"]["decoding"]
@@ -58,7 +60,10 @@ class TwoLayerSNN(SNNNetwork):
             assert (
                 config["layer sizes"][0] == 2
             ), "'divergence' encoding needs input size of 2"
-        elif config["encoding"] == "single-spike place":
+        elif (
+            config["encoding"] == "single-spike place"
+            or config["encoding"] == "cubed-spike place"
+        ):
             assert (
                 config["layer sizes"][0] % 2 == 0
             ), "It makes sense to have an uneven number of bins (so even number of neurons to account for both extremes), such that there is a bound on 0"
@@ -81,6 +86,10 @@ class TwoLayerSNN(SNNNetwork):
         # Input
         if config["neurons"][0] == "input":
             self.neuron0 = Input((1, 1, config["layer sizes"][0]), *n_in_dynamics)
+        elif config["neurons"][0] == "adaptive":
+            self.neuron0 = AdaptiveLIFNeuron(
+                (1, 1, config["layer sizes"][0]), *n_alif_dynamics
+            )
         else:
             raise ValueError("Invalid neuron type for input layer")
 
@@ -241,7 +250,12 @@ class TwoLayerSNN(SNNNetwork):
             self.input[..., 2:].clamp_(max=0.0)
             return self.input.abs()
 
-        elif self.encoding == "single-spike place":
+        elif (
+            self.encoding == "single-spike place"
+            or self.encoding == "cubed-spike place"
+        ):
+            # Subtract setpoint
+            input[..., 0] -= self.setpoint
             # Single spike based on D value in range [-10, 10]
             spike = torch.bucketize(input[..., 0], self.buckets)
             self.input = torch.zeros(1, 1, self.encs)
@@ -276,6 +290,17 @@ class TwoLayerSNN(SNNNetwork):
                 return output.view(-1)
             else:
                 return torch.tensor([0.0])
+
+
+class EncodingOnly(TwoLayerSNN):
+    def forward(self, x):
+        # Encoding
+        x = self._encode(x)
+
+        # Input layer
+        x, trace = self.neuron0(x)
+
+        return x, trace
 
 
 class ThreeLayerSNN(TwoLayerSNN):

@@ -1,9 +1,0 @@
-# Single-spike encoding in [-10, 10] D
-# Quantized weights [-256, 254] in steps of 2
-# alpha [0, 1] instead of [0, 2]
-
-net:
-  layer sizes: [32, 20, 20]
-  quantize: True
-  encoding: double float16
-

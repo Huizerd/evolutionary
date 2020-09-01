@@ -61,3 +61,13 @@ def update(d, u):
         else:
             d[k] = v
     return d
+
+
+def sigmoid(x, y_min, y_step, x_mid, steepness):
+    y = torch.where(
+        x >= 0,
+        y_step / (1 + torch.exp(-steepness * (x - x_mid))) + y_min,
+        (y_step * torch.exp(steepness * x)) / (1 + torch.exp(steepness * (x - x_mid)))
+        + y_min,
+    )
+    return y
