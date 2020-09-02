@@ -136,6 +136,8 @@ def save_network_header(network, layer_sizes, conn_ids, neuron_ids, save_folder)
         encoding_type = 0
     elif network.encoding == "both setpoint":
         encoding_type = 1
+    elif network.encoding == "cubed-spike place":
+        encoding_type = 2
     else:
         raise ValueError(f"Incompatible encoding {network.encoding} specified")
     if network.decoding == "weighted trace":
@@ -143,7 +145,8 @@ def save_network_header(network, layer_sizes, conn_ids, neuron_ids, save_folder)
     else:
         raise ValueError(f"Incompatible decoding {network.decoding} specified")
     setpoint = network.setpoint
-    actions = torch.linspace(*network.out_bounds, layer_sizes[-1]).tolist()
+    centers = network.buckets.tolist()
+    actions = network.trace_weights.tolist()
     in_size = 2
 
     # Create string
@@ -162,10 +165,13 @@ def save_network_header(network, layer_sizes, conn_ids, neuron_ids, save_folder)
     for id in neuron_ids:
         string.append(f'#include "neuron_conf_{id}.h"')
     string.append(
+        f"float const centers[] = {{{', '.join([str(c) for c in centers])}}};"
+    )
+    string.append(
         f"float const actions[] = {{{', '.join([str(a) for a in actions])}}};"
     )
     string.append(
-        f"NetworkConf const conf = {{{encoding_type}, {decoding_type}, {setpoint}, actions, {in_size}, {', '.join([str(l) for l in layer_sizes])}, {''.join(conf_string)}}};"
+        f"NetworkConf const conf = {{{encoding_type}, {decoding_type}, {setpoint}, centers, actions, {in_size}, {', '.join([str(l) for l in layer_sizes])}, {''.join(conf_string)}}};"
     )
 
     # Write to file
