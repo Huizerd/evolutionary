@@ -39,6 +39,9 @@ class TwoLayerSNN(SNNNetwork):
         # Decoding
         self.decoding = config["net"]["decoding"]
         self.out_bounds = config["env"]["g bounds"]
+        self.trace_weights = torch.linspace(
+            self.out_bounds[0], self.out_bounds[1], config["net"]["layer sizes"][-1]
+        )
 
         # Neurons and connections
         self._build_network(
@@ -134,10 +137,10 @@ class TwoLayerSNN(SNNNetwork):
 
         # Output layer
         x, _ = self.fc2(spikes, trace)
-        _, trace = self.neuron2(x)
+        spikes, trace = self.neuron2(x)
 
         # Decoding
-        return self._decode(trace)
+        return self._decode(spikes, trace)
 
     def mutate(self, genes, mutation_rate=1.0):
         # Go over all genes that have to be mutated
@@ -276,17 +279,15 @@ class TwoLayerSNN(SNNNetwork):
             )
             return self.input
 
-    def _decode(self, out_trace):
+    def _decode(self, out_spikes, out_trace):
         # Weighted average of traces
         if self.decoding == "weighted trace":
-            trace = out_trace.view(-1)
-            if trace.sum() != 0.0:
+            self.out_spikes = out_spikes.view(-1)
+            self.out_trace = out_trace.view(-1)
+            if self.out_trace.sum() != 0.0:
                 output = (
-                    trace
-                    * torch.linspace(
-                        self.out_bounds[0], self.out_bounds[1], trace.shape[0]
-                    )
-                ).sum() / trace.sum()
+                    self.out_trace * self.trace_weights
+                ).sum() / self.out_trace.sum()
                 return output.view(-1)
             else:
                 return torch.tensor([0.0])

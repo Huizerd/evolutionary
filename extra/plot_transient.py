@@ -41,6 +41,10 @@ def plot_transient(folder, parameters):
     # 100 runs
     action_list = []
     obs_list = []
+    input_spike_list = []
+    output_spike_list = []
+    output_trace_list = []
+
     for i in range(100):
         env = randomize_env(env, config)
         network.reset_state()
@@ -50,29 +54,43 @@ def plot_transient(folder, parameters):
         # For plotting
         actions = []
         observations = []
-
-        actions.append(np.clip(env.action, *config["env"]["g bounds"]))
-        observations.append(obs.copy())
+        in_spikes = []
+        out_spikes = []
+        out_trace = []
 
         while not done:
             # Step the environment
             obs = torch.from_numpy(obs)
             action = network.forward(obs.view(1, 1, -1))
             action = action.numpy()
-            obs, _, done, _ = env.step(action)
 
             if env.t >= env.settle:
                 actions.append(np.clip(env.action[0], *config["env"]["g bounds"]))
-                observations.append(obs.copy())
+                observations.append(obs.numpy().copy())
+                in_spikes.append(network.input.view(-1).numpy().copy())
+                out_spikes.append(network.out_spikes.float().numpy().copy())
+                out_trace.append(network.out_trace.numpy().copy())
 
-        action_list.append(actions[1:])
-        obs_list.append(observations[1:])
+            obs, _, done, _ = env.step(action)
+
+        action_list.append(actions)
+        obs_list.append(observations)
+        input_spike_list.append(in_spikes)
+        output_spike_list.append(out_spikes)
+        output_trace_list.append(out_trace)
 
     # Visualize
     all_x = []
     all_y = []
     fig, ax = plt.subplots(1, 1)
-    for i, act, ob in zip(range(len(action_list)), action_list, obs_list):
+    for i, act, ob, ins, outs, outt in zip(
+        range(len(action_list)),
+        action_list,
+        obs_list,
+        input_spike_list,
+        output_spike_list,
+        output_trace_list,
+    ):
         sort_idx = np.argsort(np.array(ob)[:, 0])
         ma = (
             pd.Series(np.array(act)[sort_idx])
@@ -84,7 +102,35 @@ def plot_transient(folder, parameters):
         all_x.extend((np.array(ob)[:, 0]).tolist())
         all_y.extend(act)
         output = pd.DataFrame({"x": np.array(ob)[sort_idx, 0], "y": ma})
+        output_raw = pd.DataFrame({"Derror": np.array(ob)[:, 0], "Tsp": act})
+        input_spikes_raw = pd.DataFrame(
+            np.array(ins),
+            columns=[
+                f"Derror={val1:.2f}|{val2:.2f}"
+                for val1, val2 in zip(
+                    [-99.0, *network.buckets.tolist()],
+                    [*network.buckets.tolist(), 99.0],
+                )
+            ],
+        )
+        output_spikes_raw = pd.DataFrame(
+            np.array(outs), columns=[f"Tsp={val:.2f}" for val in network.trace_weights]
+        )
+        output_traces_raw = pd.DataFrame(
+            np.array(outt), columns=[f"Tsp={val:.2f}" for val in network.trace_weights]
+        )
+
         output.to_csv(save_folder + f"run{i}.csv", index=False, sep=",")
+        output_raw.to_csv(save_folder + f"run_raw{i}.csv", index=False, sep=",")
+        input_spikes_raw.to_csv(
+            save_folder + f"run_raw_in_spikes{i}.csv", index=False, sep=","
+        )
+        output_spikes_raw.to_csv(
+            save_folder + f"run_raw_out_spikes{i}.csv", index=False, sep=","
+        )
+        output_traces_raw.to_csv(
+            save_folder + f"run_raw_out_traces{i}.csv", index=False, sep=","
+        )
 
     ax.scatter(all_x, all_y, c="b", alpha=0.5)
     ax.set_xlim([-10, 10])
