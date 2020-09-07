@@ -160,7 +160,7 @@ class TwoLayerSNN(SNNNetwork):
                             torch.randint_like(param, -80, 81)
                             * (torch.rand_like(param) < mutation_rate).float()
                         )
-                        param.clamp(-256, 254)
+                        param.clamp_(-256, 254)
                         param += param % 2
                 elif hasattr(child, gene) and gene in [
                     "alpha_v",
