@@ -42,6 +42,7 @@ def plot_transient(folder, parameters):
     time_list = []
     action_list = []
     obs_list = []
+    obs_error_list = []
     input_spike_list = []
     output_spike_list = []
     output_trace_list = []
@@ -56,6 +57,7 @@ def plot_transient(folder, parameters):
         time = []
         actions = []
         observations = []
+        obs_errors = []
         in_spikes = []
         out_spikes = []
         out_trace = []
@@ -63,13 +65,16 @@ def plot_transient(folder, parameters):
         while not done:
             # Step the environment
             obs = torch.from_numpy(obs)
-            action = network.forward(obs.view(1, 1, -1))
+            action = network.forward(obs.clone().view(1, 1, -1))
             action = action.numpy()
 
             if env.t >= env.settle:
                 time.append(env.t)
                 actions.append(np.clip(env.action[0], *config["env"]["g bounds"]))
                 observations.append(obs.numpy().copy())
+                obs_errors.append(
+                    obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
+                )
                 in_spikes.append(network.input.view(-1).numpy().copy())
                 out_spikes.append(network.out_spikes.float().numpy().copy())
                 out_trace.append(network.out_trace.numpy().copy())
@@ -79,6 +84,7 @@ def plot_transient(folder, parameters):
         time_list.append(time)
         action_list.append(actions)
         obs_list.append(observations)
+        obs_error_list.append(obs_errors)
         input_spike_list.append(in_spikes)
         output_spike_list.append(out_spikes)
         output_trace_list.append(out_trace)
@@ -87,11 +93,12 @@ def plot_transient(folder, parameters):
     all_x = []
     all_y = []
     fig, ax = plt.subplots(1, 1)
-    for i, tim, act, ob, ins, outs, outt in zip(
+    for i, tim, act, ob, ober, ins, outs, outt in zip(
         range(len(action_list)),
         time_list,
         action_list,
         obs_list,
+        obs_error_list,
         input_spike_list,
         output_spike_list,
         output_trace_list,
@@ -110,7 +117,12 @@ def plot_transient(folder, parameters):
             {"time": np.array(tim), "x": np.array(ob)[sort_idx, 0], "y": ma}
         )
         output_raw = pd.DataFrame(
-            {"time": np.array(tim), "Derror": np.array(ob)[:, 0], "Tsp": act}
+            {
+                "time": np.array(tim),
+                "D": np.array(ob)[:, 0],
+                "Derror": np.array(ober)[:, 0],
+                "Tsp": act,
+            }
         )
         input_spikes_raw = pd.DataFrame(
             np.concatenate((np.array(tim)[..., None], np.array(ins)), axis=1),
