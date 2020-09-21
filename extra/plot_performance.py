@@ -109,7 +109,6 @@ def plot_performance(folder, parameters):
             obs = torch.from_numpy(obs)
             action = network.forward(obs.view(1, 1, -1))
             action = action.numpy()
-            obs, _, done, _ = env.step(action)
 
             # Log performance
             action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
@@ -142,6 +141,9 @@ def plot_performance(folder, parameters):
                     neuron_dict[name]["spike"].append(
                         child.spikes.detach().clone().view(-1).numpy()
                     ) if hasattr(child, "spikes") else None
+
+            # Advance env
+            obs, _, done, _ = env.step(action)
 
         # Plot data
         # Height
