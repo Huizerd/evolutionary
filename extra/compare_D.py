@@ -103,7 +103,10 @@ def compare_D(sim_folder, real_folder):
 
     for i, ax in enumerate(axs2):
         data_sim = pd.read_csv(sim_files[i], sep=",")
-        data_real = pd.read_csv(real_files[i], sep=",")
+        try:
+            data_real = pd.read_csv(real_files[i], sep=",")
+        except IndexError:
+            continue
         ax.scatter(data_sim["div"], data_sim["div_gt"], s=6, label="sim")
         ax.scatter(data_real["div"], data_real["div_gt"], s=6, label="real")
         ax.grid()
@@ -119,7 +122,10 @@ def compare_D(sim_folder, real_folder):
 
     for i, ax in enumerate(axs3):
         data_sim = pd.read_csv(sim_files[i], sep=",")
-        data_real = pd.read_csv(real_files[i], sep=",")
+        try:
+            data_real = pd.read_csv(real_files[i], sep=",")
+        except IndexError:
+            continue
         ax.scatter(
             (data_sim["vel_z"][1:].values - data_sim["vel_z"][:-1].values)
             / (data_sim["time"][1:].values - data_sim["time"][:-1].values),
