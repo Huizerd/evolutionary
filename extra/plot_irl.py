@@ -51,6 +51,9 @@ def plot_irl(folder):
                     "divdot",
                     "divdot_gt",
                     "thrust",
+                    "thrust_lp",
+                    "acc_sp",
+                    "acc_lp",
                     "spike_count",
                 ],
             ]
@@ -61,6 +64,7 @@ def plot_irl(folder):
             plot_data["spike_step"][0] = 0
             plot_data["spike_step"] = plot_data["spike_step"].astype(int)
             plot_data["thrust"] = plot_data["thrust"] / 9.81
+            plot_data["thrust_lp_pprz"] = plot_data["thrust_lp"] / 9.81
             plot_data["thrust_lp"] = (
                 plot_data["thrust"].rolling(window=20, min_periods=1).mean()
             )
