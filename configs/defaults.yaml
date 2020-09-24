@@ -15,6 +15,7 @@ env:
   noise p: [0.0, 0.25]
   g: 9.81
   g bounds: [-0.8, 0.5]
+  noise a: 0.0
   thrust tc: [0.005, 0.04]
   settle: 0.5
   wind: 0.1
@@ -27,8 +28,8 @@ env:
 net:
   # Lists allow separate parameters for each spiking layer
   network: two-layer SNN
-  layer sizes: [4, 20, 20]
+  layer sizes: [20, 20, 20]
   neurons: [input, adaptive, regular]
-  quantize: False
-  encoding: both setpoint
+  quantize: True
+  encoding: cubed-spike place
   decoding: weighted trace

@@ -1,7 +1,0 @@
-# - Single-spike encoding in [-10, 10] D with cubed layout of bins
-# - Quantized weights [-256, 254] in steps of 2
-
-net:
-  layer sizes: [20, 20, 20]
-  quantize: True
-  encoding: cubed-spike place

@@ -1,6 +1,0 @@
-# - Adaptive LIF encoding inspired by Sander
-# - Quantized weights [-256, 254] in steps of 2
-
-net:
-  neurons: [adaptive, adaptive, regular]
-  quantize: True

@@ -1,6 +1,0 @@
-# Quantized weights
-# - between -256 and 254
-# - resolution of 2
-
-net:
-  quantize: True

@@ -38,6 +38,7 @@ def build_environment(config):
         noise_p=config["env"]["noise p"][0],
         g=config["env"]["g"],
         g_bounds=config["env"]["g bounds"],
+        noise_a=config["env"]["noise a"],
         thrust_tc=config["env"]["thrust tc"][0],
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],

@@ -71,13 +71,14 @@ def plot_sensitivity(folder, parameters, show=False):
                 obs = torch.from_numpy(obs)
                 action = network.forward(obs.view(1, 1, -1))
                 action = action.numpy()
-                obs, _, done, _ = env.step(action)
                 spikes += (
                     network.neuron1.spikes.sum().item()
                     + network.neuron2.spikes.sum().item()
                     if network.neuron1 is not None
                     else network.neuron2.spikes.sum().item()
                 )
+
+                obs, _, done, _ = env.step(action)
 
             # Increment counters
             performance[i, j, :] = [

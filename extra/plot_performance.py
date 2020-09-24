@@ -110,14 +110,14 @@ def plot_performance(folder, parameters):
         while not done:
             # Step the environment
             obs = torch.from_numpy(obs)
-            action = network.forward(obs.view(1, 1, -1))
+            action = network.forward(obs.clone().view(1, 1, -1))
             action = action.numpy()
 
             # Log performance
             action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
             state_list.append(env.state.copy())
             obs_gt_list.append(env.div_ph.copy())
-            obs_list.append(obs.copy())
+            obs_list.append(obs.numpy().copy())
             time_list.append(env.t)
             spikes += (
                 network.neuron1.spikes.sum().item()

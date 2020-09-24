@@ -115,6 +115,8 @@ class TwoLayerSNN(SNNNetwork):
             )
         else:
             raise ValueError("Invalid neuron type for output layer")
+        # Name of output neuron for trace mutation
+        self.out_name = "neuron2"
 
         # Connections
         self.fc1 = Linear(
@@ -145,7 +147,7 @@ class TwoLayerSNN(SNNNetwork):
     def mutate(self, genes, mutation_rate=1.0):
         # Go over all genes that have to be mutated
         for gene in genes:
-            for child in self.children():
+            for name, child in self.named_children():
                 if hasattr(child, gene) and gene == "weight":
                     param = getattr(child, gene)
                     if not self.quantize:
@@ -157,22 +159,33 @@ class TwoLayerSNN(SNNNetwork):
                     else:
                         # Uniform increase/decrease from [-80, 80]
                         param += (
-                            torch.randint_like(param, -80, 81)
+                            torch.randint_like(param, -40, 41)
                             * (torch.rand_like(param) < mutation_rate).float()
                         )
                         param.clamp_(-256, 254)
                         param += param % 2
-                elif hasattr(child, gene) and gene in [
-                    "alpha_v",
-                    "alpha_t",
-                    "alpha_thresh",
-                ]:
+                elif hasattr(child, gene) and gene in ["alpha_v", "alpha_thresh"]:
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.667, 0.667)) * (
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
                         torch.rand_like(param) < mutation_rate
                     ).float()
                     param.clamp_(0.0, 1.0)
-                elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
+                # Only trace of output neuron is used
+                elif (
+                    hasattr(child, gene) and gene == "alpha_t" and name == self.out_name
+                ):
+                    param = getattr(child, gene)
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.0, 1.0)
+                elif hasattr(child, gene) and gene in ["tau_v", "tau_thresh"]:
+                    param = getattr(child, gene)
+                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
+                        torch.rand_like(param) < mutation_rate
+                    ).float()
+                    param.clamp_(0.0, 1.0)
+                elif hasattr(child, gene) and gene == "tau_t" and name == self.out_name:
                     param = getattr(child, gene)
                     param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
                         torch.rand_like(param) < mutation_rate
@@ -343,6 +356,8 @@ class ThreeLayerSNN(TwoLayerSNN):
             )
         else:
             raise ValueError("Invalid neuron type for output layer")
+        # Name of output neuron for trace mutation
+        self.out_name = "neuron3"
 
         # Connections
         self.fc1 = Linear(

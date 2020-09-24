@@ -1,5 +1,0 @@
-# Single-spike encoding in [-10, 10] D
-
-net:
-  layer sizes: [20, 20, 20]
-  encoding: single-spike place

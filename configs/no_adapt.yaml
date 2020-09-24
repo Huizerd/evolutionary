@@ -1,0 +1,6 @@
+# No LIF neurons with adaptive threshold to ease transfer
+
+evo:
+  genes: [weight, alpha_v, alpha_t, tau_v, tau_t, thresh]
+net:
+  neurons: [input, regular, regular]
