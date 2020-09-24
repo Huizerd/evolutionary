@@ -17,7 +17,7 @@ def plot_irl(folder):
     axs[0].set_ylabel("height [m]")
     axs[1].set_ylabel("velocity [m/s]")
     axs[2].set_ylabel("thrust [g]")
-    axs[3].set_ylabel("thrust lp [g]")
+    axs[3].set_ylabel("acceleration [m/s2]")
     axs[4].set_ylabel("divergence [1/s]")
     axs[5].set_ylabel("divergence dot [1/s2]")
     axs[6].set_ylabel("spikes [?]")
@@ -79,8 +79,8 @@ def plot_irl(folder):
             axs[1].plot(plot_data["time"], -plot_data["vel_z"], label=f"run {i}")
             # Thrust
             axs[2].plot(plot_data["time"], plot_data["thrust"], label=f"run {i}")
-            # Thrust low-pass
-            axs[3].plot(plot_data["time"], plot_data["thrust_lp"], label=f"run {i}")
+            # Accel lp
+            axs[3].plot(plot_data["time"], plot_data["acc_lp"], label=f"run {i}")
             # Divergence
             axs[4].plot(plot_data["time"], plot_data["div"], label=f"run {i}")
             # axs[3].plot(
