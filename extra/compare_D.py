@@ -67,14 +67,9 @@ def compare_D(sim_folder, real_folder):
         # Velocity
         axs[1, 1].plot(data["time"], -data["vel_z"], label=f"run {i}")
         # Acceleration
-        axs[2, 1].plot(
-            data["time"],
-            -data["acc_lp"].rolling(window=5, min_periods=1).mean(),
-            label=f"run {i}",
-        )
-        # axs[2, 1].plot(data["time"][1:].values, -pd.Series((data["vel_z"][1:].values - data["vel_z"][:-1].values) / (data["time"][1:].values - data["time"][:-1].values)).rolling(window=5, min_periods=1).mean(), label=f"run {i}")
+        axs[2, 1].plot(data["time"], -data["acc_lp"], label=f"run {i}")
         # Thrust
-        axs[3, 1].plot(data["time"], data["thrust"], label=f"run {i}")
+        axs[3, 1].plot(data["time"], data["thrust_lp_pprz"], label=f"run {i}")
         # Divergence
         axs[4, 1].plot(data["time"], data["div"], label=f"run {i}")
         # Divergence dot
@@ -127,25 +122,10 @@ def compare_D(sim_folder, real_folder):
         except IndexError:
             continue
         ax.scatter(
-            (data_sim["vel_z"][1:].values - data_sim["vel_z"][:-1].values)
-            / (data_sim["time"][1:].values - data_sim["time"][:-1].values),
-            data_sim["tsp"][1:].values * 9.81,
-            s=6,
-            label="sim",
-        )
-        # ax.scatter(data_sim["thrust"].values, data_sim["tsp"].values * 9.81, s=6)
-        ax.scatter(
-            -(data_real["vel_z"][1:].values - data_real["vel_z"][:-1].values)
-            / (data_real["time"][1:].values - data_real["time"][:-1].values),
-            data_real["thrust"][1:].values * 9.81,
-            s=6,
-            label="real: dvel/dt, thrust",
+            data_sim["thrust"].values, data_sim["tsp"].values * 9.81, s=6, label="sim"
         )
         ax.scatter(
-            -data_real["acc_lp"],
-            data_real["thrust"] * 9.81,
-            s=6,
-            label="real: acc_lp, thrust",
+            -data_real["acc_lp"], data_real["thrust_lp_pprz"] * 9.81, s=6, label="real"
         )
         ax.grid()
 
