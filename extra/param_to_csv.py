@@ -97,7 +97,7 @@ def param_to_csv(folder, parameters):
                         network.neuron2.alpha_t.view(-1, 1).data.numpy(),
                         network.neuron2.tau_v.view(-1, 1).data.numpy(),
                         network.neuron2.tau_t.view(-1, 1).data.numpy(),
-                        network.neuron1.thresh.view(-1, 1).data.numpy(),
+                        network.neuron2.thresh.view(-1, 1).data.numpy(),
                     ],
                     axis=1,
                 ),

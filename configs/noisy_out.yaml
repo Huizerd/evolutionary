@@ -1,4 +1,0 @@
-# Add a little bit of noise in the output to prevent very small actions (which don't transfer well)
-
-env:
-  noise a: 0.05  # in g's

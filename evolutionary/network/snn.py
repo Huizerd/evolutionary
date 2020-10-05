@@ -19,9 +19,29 @@ class TwoLayerSNN(SNNNetwork):
         # dt, alpha_t, tau_t
         n_in_dynamics = [1, 0.0, 0.0]
         # thresh, v_rest, alpha_v, alpha_t, dt, refrac, tau_v, tau_t
-        n_lif_dynamics = [0.0, 0.0, 0.0, 0.0, 1, 0, 0.0, 0.0]
+        n_lif_dynamics = [
+            0.0,
+            0.0,
+            config["net"]["default param"]["alpha_v"],
+            0.0,
+            1,
+            0,
+            0.0,
+            0.0,
+        ]
         # thresh, v_rest, alpha_v, alpha_t, dt, refrac, tau_v, tau_t, alpha_thresh, tau_thresh
-        n_alif_dynamics = [0.2, 0.0, 0.0, 0.0, 1, 0, 0.0, 0.0, 0.0, 0.0]
+        n_alif_dynamics = [
+            config["net"]["default param"]["thresh_alif"],
+            0.0,
+            config["net"]["default param"]["alpha_v"],
+            0.0,
+            1,
+            0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+        ]
         # batch_size, dt, delay
         c_dynamics = [1, 1, 0]
 
@@ -50,8 +70,10 @@ class TwoLayerSNN(SNNNetwork):
 
         # Randomize initial parameters
         self.quantize = config["net"]["quantize"]
-        self._randomize_weights(-1.0, 1.0)
-        self._randomize_neurons(config["evo"]["genes"])
+        self._randomize_weights(
+            *config["evo"]["limits"][config["evo"]["genes"].index("weight")]
+        )
+        self._randomize_neurons(config["evo"]["genes"], config["evo"]["limits"])
 
     def _check_sizes(self, config):
         # Check encoding and input size
@@ -144,53 +166,63 @@ class TwoLayerSNN(SNNNetwork):
         # Decoding
         return self._decode(spikes, trace)
 
-    def mutate(self, genes, mutation_rate=1.0):
+    def mutate(self, genes, mutations, limits, decay, mutation_rate=1.0):
         # Go over all genes that have to be mutated
-        for gene in genes:
+        for gene, mut, lim in zip(genes, mutations, limits):
             for name, child in self.named_children():
                 if hasattr(child, gene) and gene == "weight":
                     param = getattr(child, gene)
                     if not self.quantize:
-                        # Uniform increase/decrease from [-1, 1]
-                        param += (torch.empty_like(param).uniform_(-1.0, 1.0)) * (
-                            torch.rand_like(param) < mutation_rate
-                        ).float()
-                        param.clamp_(-3.0, 3.0)
-                    else:
-                        # Uniform increase/decrease from [-80, 80]
                         param += (
-                            torch.randint_like(param, -40, 41)
+                            (torch.empty_like(param).uniform_(*mut))
+                            * (torch.rand_like(param) < mutation_rate).float()
+                            * decay
+                        )
+                        param.clamp_(*lim)
+                    else:
+                        param += (
+                            torch.randint_like(
+                                param, round(mut[0] * decay), round(mut[1] * decay)
+                            )
                             * (torch.rand_like(param) < mutation_rate).float()
                         )
-                        param.clamp_(-256, 254)
+                        param.clamp_(*lim)
                         param += param % 2
                 elif hasattr(child, gene) and gene in ["alpha_v", "alpha_thresh"]:
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
+                    param += (
+                        (torch.empty_like(param).uniform_(*mut))
+                        * (torch.rand_like(param) < mutation_rate).float()
+                        * decay
+                    )
+                    param.clamp_(*lim)
                 # Only trace of output neuron is used
                 elif (
                     hasattr(child, gene) and gene == "alpha_t" and name == self.out_name
                 ):
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
+                    param += (
+                        (torch.empty_like(param).uniform_(*mut))
+                        * (torch.rand_like(param) < mutation_rate).float()
+                        * decay
+                    )
+                    param.clamp_(*lim)
                 elif hasattr(child, gene) and gene in ["tau_v", "tau_thresh"]:
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
+                    param += (
+                        (torch.empty_like(param).uniform_(*mut))
+                        * (torch.rand_like(param) < mutation_rate).float()
+                        * decay
+                    )
+                    param.clamp_(*lim)
                 elif hasattr(child, gene) and gene == "tau_t" and name == self.out_name:
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
+                    param += (
+                        (torch.empty_like(param).uniform_(*mut))
+                        * (torch.rand_like(param) < mutation_rate).float()
+                        * decay
+                    )
+                    param.clamp_(*lim)
                 elif (
                     hasattr(child, gene)
                     and gene == "thresh"
@@ -198,10 +230,12 @@ class TwoLayerSNN(SNNNetwork):
                 ):
                     # Only mutate threshold for non-adaptive neuron
                     param = getattr(child, gene)
-                    param += (torch.empty_like(param).uniform_(-0.333, 0.333)) * (
-                        torch.rand_like(param) < mutation_rate
-                    ).float()
-                    param.clamp_(0.0, 1.0)
+                    param += (
+                        (torch.empty_like(param).uniform_(*mut))
+                        * (torch.rand_like(param) < mutation_rate).float()
+                        * decay
+                    )
+                    param.clamp_(*lim)
 
     def _randomize_weights(self, low, high):
         if not self.quantize:
@@ -209,16 +243,20 @@ class TwoLayerSNN(SNNNetwork):
             self.fc2.reset_weights(a=low, b=high)
         else:
             # Init
-            self.fc1.weight.data = torch.randint_like(self.fc1.weight.data, -256, 255)
-            self.fc2.weight.data = torch.randint_like(self.fc2.weight.data, -256, 255)
+            self.fc1.weight.data = torch.randint_like(
+                self.fc1.weight.data, low, high + 1
+            )
+            self.fc2.weight.data = torch.randint_like(
+                self.fc2.weight.data, low, high + 1
+            )
             # And round to even numbers only
             # Bounds are even, so no need for clamp!
             self.fc1.weight.data += self.fc1.weight.data % 2
             self.fc2.weight.data += self.fc2.weight.data % 2
 
-    def _randomize_neurons(self, genes):
+    def _randomize_neurons(self, genes, limits):
         # Go over all genes that have to be mutated
-        for gene in genes:
+        for gene, lim in zip(genes, limits):
             for child in self.children():
                 if hasattr(child, gene) and gene in [
                     "alpha_v",
@@ -226,10 +264,10 @@ class TwoLayerSNN(SNNNetwork):
                     "alpha_thresh",
                 ]:
                     param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
+                    param.uniform_(*lim)
                 elif hasattr(child, gene) and gene in ["tau_v", "tau_t", "tau_thresh"]:
                     param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
+                    param.uniform_(*lim)
                 elif (
                     hasattr(child, gene)
                     and gene == "thresh"
@@ -237,7 +275,7 @@ class TwoLayerSNN(SNNNetwork):
                 ):
                     # Only mutate threshold for non-adaptive neuron
                     param = getattr(child, gene)
-                    param.uniform_(0.0, 1.0)
+                    param.uniform_(*lim)
 
     def _encode(self, input):
         if self.encoding == "both":
@@ -399,9 +437,15 @@ class ThreeLayerSNN(TwoLayerSNN):
             self.fc3.reset_weights(a=low, b=high)
         else:
             # Init
-            self.fc1.weight.data = torch.randint_like(self.fc1.weight.data, -256, 255)
-            self.fc2.weight.data = torch.randint_like(self.fc2.weight.data, -256, 255)
-            self.fc3.weight.data = torch.randint_like(self.fc3.weight.data, -256, 255)
+            self.fc1.weight.data = torch.randint_like(
+                self.fc1.weight.data, low, high + 1
+            )
+            self.fc2.weight.data = torch.randint_like(
+                self.fc2.weight.data, low, high + 1
+            )
+            self.fc3.weight.data = torch.randint_like(
+                self.fc3.weight.data, low, high + 1
+            )
             # And round to even numbers only
             # Bounds are even, so no need for clamp!
             self.fc1.weight.data += self.fc1.weight.data % 2

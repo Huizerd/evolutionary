@@ -55,7 +55,7 @@ def plot_pid(folder):
         # Randomizing here means that another run of this file will get different envs,
         # but so be it. Not easy to change
         env = randomize_env(env, config)
-        obs = env.reset(h0=config["env"]["h0"][1])
+        obs = env.reset(h0=(config["env"]["h0"][-1] + config["env"]["h0"][0]) / 2)
         env.action = np.array(
             [env.action]
         )  # obscure fix to allow logging after env step

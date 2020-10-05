@@ -57,7 +57,8 @@ def main(config, verbose):
         "population", tools.initRepeat, container=list, func=toolbox.individual
     )
     toolbox.register(
-        "evaluate", partial(evaluate, config, envs, config["env"]["h0"]),
+        "evaluate",
+        partial(evaluate, config, envs, config["env"]["h0"]),
     )
     toolbox.register("mate", crossover_none)
     toolbox.register(
@@ -65,6 +66,9 @@ def main(config, verbose):
         partial(
             mutate_call_network,
             config["evo"]["genes"],
+            config["evo"]["mutations"],
+            config["evo"]["limits"],
+            1.0,
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )
@@ -116,30 +120,37 @@ def main(config, verbose):
     )
 
     if verbose:
-        # Plot relevant part of population fitness
-        last_fig = []
-        last_fig.append(vis_population(population, hof, verbose=verbose))
-
         # Create folders for parameters of individuals
-        # Only save hall of fame
-        os.makedirs(f"{config['log location']}hof_000/")
+        os.makedirs(f"{config['log location']}pop_000/")
+        os.makedirs(f"{config['log location']}pop_000/hof/")
 
         # And log the initial performance
-        # Figures
-        for i, last in enumerate(last_fig):
-            if last[2]:
-                last[0].savefig(f"{config['fig location']}population{i}_000.png")
         # Parameters
+        for i, ind in enumerate(population):
+            torch.save(
+                ind[0].state_dict(),
+                f"{config['log location']}pop_000/individual_{i:03}.net",
+            )
         for i, ind in enumerate(hof):
             torch.save(
                 ind[0].state_dict(),
-                f"{config['log location']}hof_000/individual_{i:03}.net",
+                f"{config['log location']}pop_000/hof/hof_{i:03}.net",
             )
         # Fitnesses
         pd.DataFrame(
             [ind.fitness.values for ind in hof],
             columns=[f"SSE D{config['evo']['D setpoint']}"],
-        ).to_csv(f"{config['log location']}hof_000/fitnesses.csv", index=False, sep=",")
+        ).to_csv(f"{config['log location']}pop_000/fitnesses.csv", index=False, sep=",")
+
+        if verbose > 1:
+            # Plot relevant part of population fitness
+            last_fig = []
+            last_fig.append(vis_population(population, hof, verbose=verbose))
+
+            # Figures
+            for i, last in enumerate(last_fig):
+                if last[2]:
+                    last[0].savefig(f"{config['fig location']}population{i}_000.png")
 
     # Begin the evolution!
     for gen in range(1, config["evo"]["gens"]):
@@ -158,6 +169,22 @@ def main(config, verbose):
         if len(others) % 4:
             others.extend(random.sample(selection, 4 - (len(others) % 4)))
         selection.extend(tools.selTournamentDCD(others, len(others)))
+
+        # Decay mutations: re-register mutation with decay
+        if gen > config["evo"]["mutation decay"]["start"]:
+            toolbox.register(
+                "mutate",
+                partial(
+                    mutate_call_network,
+                    config["evo"]["genes"],
+                    config["evo"]["mutations"],
+                    config["evo"]["limits"],
+                    1.0
+                    - config["evo"]["mutation decay"]["rate"]
+                    * (gen - config["evo"]["mutation decay"]["start"]),
+                    mutation_rate=config["evo"]["mutation rate"],
+                ),
+            )
 
         # Get offspring: mutate selection
         offspring = [
@@ -203,30 +230,24 @@ def main(config, verbose):
         )
 
         if verbose:
-            # Plot relevant part of population fitness
-            for i, last, in zip(range(len(last_fig)), last_fig):
-                last_fig[i] = vis_population(
-                    population, hof, last=last, verbose=verbose
-                )
-
             # Log every so many generations
             if not gen % config["log interval"] or gen == config["evo"]["gens"] - 1:
-                # Create directory
-                if not os.path.exists(f"{config['log location']}hof_{gen:03}/"):
-                    os.makedirs(f"{config['log location']}hof_{gen:03}/")
+                # Create directories
+                if not os.path.exists(f"{config['log location']}pop_{gen:03}/"):
+                    os.makedirs(f"{config['log location']}pop_{gen:03}/")
+                if not os.path.exists(f"{config['log location']}pop_{gen:03}/hof/"):
+                    os.makedirs(f"{config['log location']}pop_{gen:03}/hof/")
 
-                # Save population figure
-                for i, last in enumerate(last_fig):
-                    if last[2]:
-                        last[0].savefig(
-                            f"{config['fig location']}population{i}_{gen:03}.png"
-                        )
-
-                # Save parameters of hall of fame individuals
+                # Save parameters
+                for i, ind in enumerate(population):
+                    torch.save(
+                        ind[0].state_dict(),
+                        f"{config['log location']}pop_{gen:03}/individual_{i:03}.net",
+                    )
                 for i, ind in enumerate(hof):
                     torch.save(
                         ind[0].state_dict(),
-                        f"{config['log location']}hof_{gen:03}/individual_{i:03}.net",
+                        f"{config['log location']}pop_{gen:03}/hof/hof_{i:03}.net",
                     )
 
                 # Save fitnesses
@@ -234,7 +255,7 @@ def main(config, verbose):
                     [ind.fitness.values for ind in hof],
                     columns=[f"SSE D{config['evo']['D setpoint']}"],
                 ).to_csv(
-                    f"{config['log location']}hof_{gen:03}/fitnesses.csv",
+                    f"{config['log location']}pop_{gen:03}/fitnesses.csv",
                     index=False,
                     sep=",",
                 )
@@ -244,6 +265,23 @@ def main(config, verbose):
                     f"{config['log location']}logbook.csv", index=False, sep=","
                 )
 
+                if verbose > 1:
+                    # Plot relevant part of population fitness
+                    for (
+                        i,
+                        last,
+                    ) in zip(range(len(last_fig)), last_fig):
+                        last_fig[i] = vis_population(
+                            population, hof, last=last, verbose=verbose
+                        )
+
+                    # Save population figure
+                    for i, last in enumerate(last_fig):
+                        if last[2]:
+                            last[0].savefig(
+                                f"{config['fig location']}population{i}_{gen:03}.png"
+                            )
+
     # Close multiprocessing pool
     pool.close()
 
@@ -251,7 +289,7 @@ def main(config, verbose):
 if __name__ == "__main__":
     # Parse input arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--verbose", type=int, choices=[0, 1, 2], default=1)
+    parser.add_argument("--verbose", type=int, choices=[0, 1, 2, 3], default=1)
     parser.add_argument("--config", type=str, default="configs/defaults.yaml")
     parser.add_argument("--tags", nargs="+", default=None)
     args = vars(parser.parse_args())
@@ -280,7 +318,8 @@ if __name__ == "__main__":
         config["log location"] += str(suffix) + "/"
         config["fig location"] = config["log location"] + "population_figs/"
         os.makedirs(config["log location"])
-        os.makedirs(config["fig location"])
+        if args["verbose"] > 1:
+            os.makedirs(config["fig location"])
 
         # Save config file and tags there
         with open(config["log location"] + "config.yaml", "w") as f:

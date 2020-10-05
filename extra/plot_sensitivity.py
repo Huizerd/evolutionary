@@ -58,8 +58,8 @@ def plot_sensitivity(folder, parameters, show=False):
 
             # Reset env and net (may be superfluous)
             # Also reseed env to make noise equal across runs!
-            # Only test from 4m
-            obs = env.reset(h0=config["env"]["h0"][1])
+            # Only test from 3.5 m
+            obs = env.reset(h0=(config["env"]["h0"][-1] + config["env"]["h0"][0]) / 2)
             env.seed(env.seeds)
             network.reset_state()
 

@@ -1,35 +1,41 @@
 # Default parameters
 
 log location: logs/runs/
-log interval: 10
+log interval: 1
 evo:
-  gens: 200
+  gens: 100
   pop size: 100
   mutation rate: 0.3
-  genes: [weight, alpha_v, alpha_t, alpha_thresh, tau_v, tau_t, tau_thresh, thresh]
-  D setpoint: 0.5
+  genes: [weight, alpha_t, tau_v, tau_t, thresh]
+  mutations: [[-80, 81], [-0.333, 0.333], [-0.333, 0.333], [-0.333, 0.333], [-0.333, 0.333]]
+  limits: [[-256, 254], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0]]
+  D setpoint: 1.0 
+  mutation decay: {start: 400, rate: 0.0}
 env:
   # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]
   noise: [0.05, 0.15]
   noise p: [0.0, 0.25]
   g: 9.81
-  g bounds: [-0.8, 0.5]
+  g bounds: [-0.4, 0.4]
   noise a: 0.0
+  deadband a: 0.0
   thrust tc: [0.005, 0.04]
   settle: 0.5
   wind: 0.1
-  h0: [2.0, 4.0, 6.0, 8.0]
-  h blind: 5.0
+  h0: [2.0, 3.0, 4.0, 5.0]
+  h blind: 10.0
   dt: [0.02, 0.0333]
   jitter: [0.0, 0.2]
+  height bounds: [0.1, 100.0]
   max time: 30.0
   seeds: 100
 net:
   # Lists allow separate parameters for each spiking layer
   network: two-layer SNN
-  layer sizes: [20, 20, 20]
-  neurons: [input, adaptive, regular]
+  layer sizes: [20, 20, 10]
+  neurons: [input, regular, regular]
+  default param: {alpha_v: 1.0, thresh_alif: 0.2}
   quantize: True
   encoding: cubed-spike place
   decoding: weighted trace

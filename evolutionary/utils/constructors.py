@@ -39,6 +39,7 @@ def build_environment(config):
         g=config["env"]["g"],
         g_bounds=config["env"]["g bounds"],
         noise_a=config["env"]["noise a"],
+        dead_a=config["env"]["deadband a"],
         thrust_tc=config["env"]["thrust tc"][0],
         settle=config["env"]["settle"],
         wind=config["env"]["wind"],
@@ -46,6 +47,8 @@ def build_environment(config):
         h_blind=config["env"]["h blind"],
         dt=config["env"]["dt"][0],
         jitter=config["env"]["jitter"][0],
+        min_h=config["env"]["height bounds"][0],
+        max_h=config["env"]["height bounds"][1],
         max_t=config["env"]["max time"],
         seed=None,
     )

@@ -37,11 +37,16 @@ def vis_population(population, hof, last=None, verbose=2):
     # Annotate
     for i in range(fitnesses.shape[0]):
         ax.text(
-            fitnesses[i, 0], 0, str(int(fitnesses[i, -1])),
+            fitnesses[i, 0],
+            0,
+            str(int(fitnesses[i, -1])),
         )
     for i in range(fitnesses_hof.shape[0]):
         ax.text(
-            fitnesses_hof[i, 0], 0, str(int(fitnesses_hof[i, -1])), va="top",
+            fitnesses_hof[i, 0],
+            0,
+            str(int(fitnesses_hof[i, -1])),
+            va="top",
         )
 
     # Decorate figure
@@ -52,7 +57,7 @@ def vis_population(population, hof, last=None, verbose=2):
     ax.relim()
     ax.autoscale_view()
     fig.tight_layout()
-    if verbose > 1:
+    if verbose > 2:
         fig.canvas.draw()
         fig.canvas.flush_events()
 

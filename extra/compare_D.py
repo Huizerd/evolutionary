@@ -52,7 +52,9 @@ def compare_D(sim_folder, real_folder):
         axs[5, 0].plot(data["time"], data["divdot"], label=f"run {i}")
         # Spikes
         axs[6, 0].plot(
-            data["time"], data["spike_count"] / data["time"], label=f"run {i}",
+            data["time"],
+            data["spike_count"] / data["time"],
+            label=f"run {i}",
         )
 
     # Real world
@@ -76,7 +78,9 @@ def compare_D(sim_folder, real_folder):
         axs[5, 1].plot(data["time"], data["divdot"], label=f"run {i}")
         # Spikes
         axs[6, 1].plot(
-            data["time"], data["spike_count"] / data["time"], label=f"run {i}",
+            data["time"],
+            data["spike_count"] / data["time"],
+            label=f"run {i}",
         )
 
     # Add grid

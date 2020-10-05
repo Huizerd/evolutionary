@@ -48,7 +48,7 @@ def plot_transient_neurons(folder, parameters):
     for i in range(10):
         env = randomize_env(env, config)
         network.reset_state()
-        obs = env.reset(h0=config["env"]["h0"][1])
+        obs = env.reset(h0=(config["env"]["h0"][-1] + config["env"]["h0"][0]) / 2)
         done = False
 
         # For plotting
