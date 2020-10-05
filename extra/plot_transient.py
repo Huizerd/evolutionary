@@ -51,6 +51,9 @@ def plot_transient(folder, parameters):
         env = randomize_env(env, config)
         network.reset_state()
         obs = env.reset(h0=(config["env"]["h0"][-1] + config["env"]["h0"][0]) / 2)
+        env.action = np.array(
+            [env.action]
+        )  # obscure fix to allow logging after env step
         done = False
 
         # For plotting
@@ -68,16 +71,15 @@ def plot_transient(folder, parameters):
             action = network.forward(obs.clone().view(1, 1, -1))
             action = action.numpy()
 
-            if env.t >= env.settle:
-                time.append(env.t)
-                actions.append(np.clip(env.action[0], *config["env"]["g bounds"]))
-                observations.append(obs.numpy().copy())
-                obs_errors.append(
-                    obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
-                )
-                in_spikes.append(network.input.view(-1).numpy().copy())
-                out_spikes.append(network.out_spikes.float().numpy().copy())
-                out_trace.append(network.out_trace.numpy().copy())
+            time.append(env.t)
+            actions.append(np.clip(env.action[0], *config["env"]["g bounds"]))
+            observations.append(obs.numpy().copy())
+            obs_errors.append(
+                obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
+            )
+            in_spikes.append(network.input.view(-1).numpy().copy())
+            out_spikes.append(network.out_spikes.float().numpy().copy())
+            out_trace.append(network.out_trace.numpy().copy())
 
             obs, _, done, _ = env.step(action)
 

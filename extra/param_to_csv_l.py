@@ -38,7 +38,9 @@ def param_to_csv_l(folder, parameters):
             hid = pd.DataFrame(
                 np.concatenate(
                     [
-                        (network.neuron1.tau_v.view(-1, 1).data.numpy() * 4096).round(),
+                        (
+                            (1 - network.neuron1.tau_v.view(-1, 1).data.numpy()) * 4096
+                        ).round(),
                         (network.neuron1.thresh.view(-1, 1).data.numpy() * 128).round(),
                     ],
                     axis=1,
@@ -55,7 +57,9 @@ def param_to_csv_l(folder, parameters):
                 np.concatenate(
                     [
                         network.neuron2.alpha_t.view(-1, 1).data.numpy(),
-                        (network.neuron2.tau_v.view(-1, 1).data.numpy() * 4096).round(),
+                        (
+                            (1 - network.neuron2.tau_v.view(-1, 1).data.numpy()) * 4096
+                        ).round(),
                         network.neuron2.tau_t.view(-1, 1).data.numpy(),
                         (network.neuron2.thresh.view(-1, 1).data.numpy() * 128).round(),
                     ],

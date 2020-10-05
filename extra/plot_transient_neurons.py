@@ -49,6 +49,9 @@ def plot_transient_neurons(folder, parameters):
         env = randomize_env(env, config)
         network.reset_state()
         obs = env.reset(h0=(config["env"]["h0"][-1] + config["env"]["h0"][0]) / 2)
+        env.action = np.array(
+            [env.action]
+        )  # obscure fix to allow logging after env step
         done = False
 
         # For plotting
@@ -63,21 +66,20 @@ def plot_transient_neurons(folder, parameters):
             action = network.forward(obs.clone().view(1, 1, -1))
             action = action.numpy()
 
-            if env.t >= env.settle:
-                time.append(env.t)
-                observations.append(obs.numpy().copy())
-                obs_errors.append(
-                    obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
+            time.append(env.t)
+            observations.append(obs.numpy().copy())
+            obs_errors.append(
+                obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
+            )
+            if isinstance(network, TwoLayerSNN):
+                in_spikes = network.input.view(-1).numpy().copy()
+                hid_spikes = network.neuron1.spikes.float().view(-1).numpy().copy()
+                out_spikes = network.out_spikes.float().view(-1).numpy().copy()
+                neuron_spikes.append(
+                    np.concatenate((in_spikes, hid_spikes, out_spikes))
                 )
-                if isinstance(network, TwoLayerSNN):
-                    in_spikes = network.input.view(-1).numpy().copy()
-                    hid_spikes = network.neuron1.spikes.float().view(-1).numpy().copy()
-                    out_spikes = network.out_spikes.float().view(-1).numpy().copy()
-                    neuron_spikes.append(
-                        np.concatenate((in_spikes, hid_spikes, out_spikes))
-                    )
-                else:
-                    raise ValueError(f"Incompatible network type specified")
+            else:
+                raise ValueError(f"Incompatible network type specified")
 
             obs, _, done, _ = env.step(action)
 
