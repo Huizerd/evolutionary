@@ -72,7 +72,12 @@ def main(config, verbose):
             mutation_rate=config["evo"]["mutation rate"],
         ),
     )
-    toolbox.register("select", tools.selNSGA2)
+    # TODO: selBest or selTournament?
+    toolbox.register("select", tools.selBest)
+    # toolbox.register("select", tools.selTournament)
+    # TODO: selTournament or selRandom?
+    # toolbox.register("fill", tools.selRandom)
+    toolbox.register("fill", tools.selTournament)
     toolbox.register("map", pool.map)
 
     stats = tools.Statistics(lambda ind: ind.fitness.values)
@@ -86,19 +91,13 @@ def main(config, verbose):
     logbook.header = ("gen", "evals", "avg", "median", "std", "min", "max")
 
     # Initialize population
-    # Pareto front: set of individuals that are not strictly dominated
-    # (i.e., better scores for all objectives) by others
     population = toolbox.population(n=config["evo"]["pop size"])
-    hof = tools.ParetoFront()  # hall of fame!
+    hof = tools.HallOfFame(10)
 
     # Evaluate initial population
     fitnesses = toolbox.map(toolbox.evaluate, population)
     for ind, fit in zip(population, fitnesses):
         ind.fitness.values = fit
-
-    # This is just to assign the crowding distance (needed for selTournamentDCD())
-    # to the individuals, no actual selection is done
-    population = toolbox.select(population, len(population))
 
     # Update hall of fame
     hof.update(population)
@@ -109,14 +108,13 @@ def main(config, verbose):
         gen=0, evals=len(population), **{k: v.round(2) for k, v in record.items()}
     )
 
-    # Log convergence (of first front) and hypervolume
-    pareto_fronts = tools.sortNondominated(population, len(population))
+    # Print log
     current_time = time.time()
     minutes = (current_time - last_time) / 60
     last_time = time.time()
     time_past = (current_time - start_time) / 60
     print(
-        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}"
+        f"gen: 0, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}, worst: {logbook.select('max')[-1]}"
     )
 
     if verbose:
@@ -161,14 +159,10 @@ def main(config, verbose):
         for env in envs:
             randomize_env(env, config)
 
-        # Selection: Pareto front + best of the rest
-        pareto_fronts = tools.sortNondominated(population, len(population))
-        selection = pareto_fronts[0]
-        others = list(chain(*pareto_fronts[1:]))
-        # We need a multiple of 4 for selTournamentDCD()
-        if len(others) % 4:
-            others.extend(random.sample(selection, 4 - (len(others) % 4)))
-        selection.extend(tools.selTournamentDCD(others, len(others)))
+        # Selection: discard 50%, fill with individuals selected by tournament from remainder
+        # So some (good) individuals will have duplicates
+        selection = toolbox.select(population, len(population) // 2)
+        selection.extend(toolbox.fill(selection, len(selection), 10))
 
         # Decay mutations: re-register mutation with decay
         if gen > config["evo"]["mutation decay"]["start"]:
@@ -192,41 +186,37 @@ def main(config, verbose):
         ]
 
         # Re-evaluate last generation/population, because their conditions are random
-        # and we want to test each individual against as many as possible
+        # Individuals that live multiple generations might otherwise only be evaluated once
         fitnesses = toolbox.map(toolbox.evaluate, population)
         for ind, fit in zip(population, fitnesses):
             ind.fitness.values = fit
 
-        # And evaluate the entire new offspring, for the same reason
+        # Evaluate the offspring
         fitnesses = toolbox.map(toolbox.evaluate, offspring)
         for ind, fit in zip(offspring, fitnesses):
             ind.fitness.values = fit
 
-        # Update the hall of fame with the offspring,
-        # so we get the best of population + offspring in there
-        # Also include population, because we re-evaluated it
-        hof.update(population + offspring)
+        # Update the hall of fame with the re-evaluated last generation and the offspring
+        hof.update(offspring)
 
         # Select the population for the next generation
-        # from the last generation and its offspring
-        population = toolbox.select(population + offspring, config["evo"]["pop size"])
+        population = toolbox.select(population + offspring, len(population))
 
-        # Log stuff, but don't print!
+        # Log stuff
         record = stats.compile(population)
         logbook.record(
             gen=gen,
-            evals=len(offspring) + len(population),
+            evals=len(population),
             **{k: v.round(2) for k, v in record.items()},
         )
 
-        # Log convergence (of first front) and hypervolume
-        pareto_fronts = tools.sortNondominated(population, len(population))
+        # Print log
         current_time = time.time()
         minutes = (current_time - last_time) / 60
         last_time = time.time()
         time_past = (current_time - start_time) / 60
         print(
-            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}"
+            f"gen: {gen}, time past: {time_past:.2f} min, minutes: {minutes:.2f} min, best: {logbook.select('min')[-1]}, worst: {logbook.select('max')[-1]}"
         )
 
         if verbose:

@@ -6,9 +6,6 @@ import torch
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from pysnn.neuron import AdaptiveLIFNeuron
-
-from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
 from evolutionary.utils.constructors import build_network
 
 
@@ -29,55 +26,53 @@ def plot_weights(folder, parameters):
     # Load network parameters
     network.load_state_dict(torch.load(parameters))
 
-    # Two-layer
-    if isinstance(network, TwoLayerSNN):
-        # Create figure
-        fig, ax = plt.subplots(2, 2)
+    # Create figure
+    fig, ax = plt.subplots(2, 2)
 
-        # In -> hid
-        # Square
-        im1 = ax[0, 0].imshow(
-            network.fc1.weight.data.numpy(), vmin=-256, vmax=254, cmap="viridis"
-        )
-        ax[0, 0].set_xlabel("pre id")
-        ax[0, 0].set_ylabel("post id")
-        ax[0, 0].set_title("in -> hid")
-        cbar1 = fig.colorbar(im1, ax=ax[0, 0])
-        cbar1.set_label("weight")
-        # Histogram
-        ax[0, 1].hist(
-            network.fc1.weight.data.view(-1).numpy(),
-            range=[-256, 254],
-            bins=20,
-            edgecolor="black",
-        )
-        ax[0, 1].set_xlabel("weight")
-        ax[0, 1].set_ylabel("count")
-        ax[0, 1].set_title("in -> hid")
+    # In -> hid
+    # Square
+    im1 = ax[0, 0].imshow(
+        network.fc1.weight.data.numpy(), vmin=-256, vmax=254, cmap="viridis"
+    )
+    ax[0, 0].set_xlabel("pre id")
+    ax[0, 0].set_ylabel("post id")
+    ax[0, 0].set_title("in -> hid")
+    cbar1 = fig.colorbar(im1, ax=ax[0, 0])
+    cbar1.set_label("weight")
+    # Histogram
+    ax[0, 1].hist(
+        network.fc1.weight.data.view(-1).numpy(),
+        range=[-256, 254],
+        bins=20,
+        edgecolor="black",
+    )
+    ax[0, 1].set_xlabel("weight")
+    ax[0, 1].set_ylabel("count")
+    ax[0, 1].set_title("in -> hid")
 
-        # Hid -> out
-        # Square
-        im2 = ax[1, 0].imshow(
-            network.fc2.weight.data.numpy(), vmin=-256, vmax=254, cmap="viridis"
-        )
-        ax[1, 0].set_xlabel("pre id")
-        ax[1, 0].set_ylabel("post id")
-        ax[1, 0].set_title("hid -> out")
-        cbar2 = fig.colorbar(im2, ax=ax[1, 0])
-        cbar2.set_label("weight")
-        # Histogram
-        ax[1, 1].hist(
-            network.fc2.weight.data.view(-1).numpy(),
-            range=[-256, 254],
-            bins=20,
-            edgecolor="black",
-        )
-        ax[1, 1].set_xlabel("weight")
-        ax[1, 1].set_ylabel("count")
-        ax[1, 1].set_title("hid -> out")
+    # Hid -> out
+    # Square
+    im2 = ax[1, 0].imshow(
+        network.fc2.weight.data.numpy(), vmin=-256, vmax=254, cmap="viridis"
+    )
+    ax[1, 0].set_xlabel("pre id")
+    ax[1, 0].set_ylabel("post id")
+    ax[1, 0].set_title("hid -> out")
+    cbar2 = fig.colorbar(im2, ax=ax[1, 0])
+    cbar2.set_label("weight")
+    # Histogram
+    ax[1, 1].hist(
+        network.fc2.weight.data.view(-1).numpy(),
+        range=[-256, 254],
+        bins=20,
+        edgecolor="black",
+    )
+    ax[1, 1].set_xlabel("weight")
+    ax[1, 1].set_ylabel("count")
+    ax[1, 1].set_title("hid -> out")
 
-        fig.tight_layout()
-        plt.show()
+    fig.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":

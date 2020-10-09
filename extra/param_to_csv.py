@@ -6,9 +6,6 @@ import torch
 import pandas as pd
 import numpy as np
 
-from pysnn.neuron import AdaptiveLIFNeuron
-
-from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
 from evolutionary.utils.constructors import build_network
 
 
@@ -29,87 +26,33 @@ def param_to_csv(folder, parameters):
     # Load network parameters
     network.load_state_dict(torch.load(parameters))
 
-    # Two-layer
-    if isinstance(network, TwoLayerSNN):
-        # Hidden neuron
-        if isinstance(network.neuron1, AdaptiveLIFNeuron):
-            hid = pd.DataFrame(
-                np.concatenate(
-                    [
-                        network.neuron1.alpha_v.view(-1, 1).data.numpy(),
-                        network.neuron1.alpha_thresh.view(-1, 1).data.numpy(),
-                        network.neuron1.tau_v.view(-1, 1).data.numpy(),
-                        network.neuron1.tau_thresh.view(-1, 1).data.numpy(),
-                        torch.ones_like(network.neuron1.thresh).view(-1, 1).data.numpy()
-                        * network.neuron1.thresh_center.item(),
-                    ],
-                    axis=1,
-                ),
-                columns=["alpha_v", "alpha_th", "tau_v", "tau_th", "thresh_rest"],
-            )
-            hid.to_csv(save_folder + "hid.csv")
-        else:
-            hid = pd.DataFrame(
-                np.concatenate(
-                    [
-                        network.neuron1.alpha_v.view(-1, 1).data.numpy(),
-                        network.neuron1.tau_v.view(-1, 1).data.numpy(),
-                        network.neuron1.thresh.view(-1, 1).data.numpy(),
-                    ],
-                    axis=1,
-                ),
-                columns=["alpha_v", "tau_v", "thresh"],
-            )
-            hid.to_csv(save_folder + "hid.csv")
+    # Hidden neuron
+    hid = pd.DataFrame(
+        np.concatenate(
+            [
+                network.neuron1.tau_v.view(-1, 1).data.numpy(),
+                network.neuron1.thresh.view(-1, 1).data.numpy(),
+            ],
+            axis=1,
+        ),
+        columns=["tau_v", "thresh"],
+    )
+    hid.to_csv(save_folder + "hid.csv")
 
-        # Output neuron
-        if isinstance(network.neuron2, AdaptiveLIFNeuron):
-            out = pd.DataFrame(
-                np.concatenate(
-                    [
-                        network.neuron2.alpha_v.view(-1, 1).data.numpy(),
-                        network.neuron2.alpha_t.view(-1, 1).data.numpy(),
-                        network.neuron2.alpha_thresh.view(-1, 1).data.numpy(),
-                        network.neuron2.tau_v.view(-1, 1).data.numpy(),
-                        network.neuron2.tau_t.view(-1, 1).data.numpy(),
-                        network.neuron2.tau_thresh.view(-1, 1).data.numpy(),
-                        torch.ones_like(network.neuron2.thresh).view(-1, 1).data.numpy()
-                        * network.neuron2.thresh_center.item(),
-                    ],
-                    axis=1,
-                ),
-                columns=[
-                    "alpha_v",
-                    "alpha_t",
-                    "alpha_th",
-                    "tau_v",
-                    "tau_t",
-                    "tau_th",
-                    "thresh_rest",
-                ],
-            )
-            out.to_csv(save_folder + "out.csv")
-        else:
-            out = pd.DataFrame(
-                np.concatenate(
-                    [
-                        network.neuron2.alpha_v.view(-1, 1).data.numpy(),
-                        network.neuron2.alpha_t.view(-1, 1).data.numpy(),
-                        network.neuron2.tau_v.view(-1, 1).data.numpy(),
-                        network.neuron2.tau_t.view(-1, 1).data.numpy(),
-                        network.neuron2.thresh.view(-1, 1).data.numpy(),
-                    ],
-                    axis=1,
-                ),
-                columns=["alpha_v", "alpha_t", "tau_v", "tau_t", "thresh"],
-            )
-            out.to_csv(save_folder + "out.csv")
-
-    # Three-layer
-    elif isinstance(network, ThreeLayerSNN):
-        raise NotImplementedError(
-            "Parameter export not yet implemented for ThreeLayerSNN"
-        )
+    # Output neuron
+    out = pd.DataFrame(
+        np.concatenate(
+            [
+                network.neuron2.alpha_t.view(-1, 1).data.numpy(),
+                network.neuron2.tau_v.view(-1, 1).data.numpy(),
+                network.neuron2.tau_t.view(-1, 1).data.numpy(),
+                network.neuron2.thresh.view(-1, 1).data.numpy(),
+            ],
+            axis=1,
+        ),
+        columns=["alpha_t", "tau_v", "tau_t", "thresh"],
+    )
+    out.to_csv(save_folder + "out.csv")
 
 
 if __name__ == "__main__":

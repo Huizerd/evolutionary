@@ -4,9 +4,6 @@ import yaml
 
 import torch
 
-from pysnn.neuron import AdaptiveLIFNeuron
-
-from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
 from evolutionary.utils.constructors import build_network
 
 
@@ -27,42 +24,18 @@ def model_to_header(folder, parameters):
     # Load network parameters
     network.load_state_dict(torch.load(parameters))
 
-    # Two-layer
-    if isinstance(network, TwoLayerSNN):
-        # In -> hid
-        save_connection_header(network.fc1, "01", save_folder)
-        # Hid
-        save_neuron_header(network.neuron1, "1", save_folder)
-        # Hid -> out
-        save_connection_header(network.fc2, "12", save_folder)
-        # Out
-        save_neuron_header(network.neuron2, "2", save_folder)
-        # Network
-        save_network_header(
-            network, config["net"]["layer sizes"], ["01", "12"], ["1", "2"], save_folder
-        )
-    # Three-layer
-    elif isinstance(network, ThreeLayerSNN):
-        # In -> hid1
-        save_connection_header(network.fc1, "01", save_folder)
-        # Hid1
-        save_neuron_header(network.neuron1, "1", save_folder)
-        # Hid1 -> hid2
-        save_connection_header(network.fc2, "12", save_folder)
-        # Hid2
-        save_neuron_header(network.neuron2, "2", save_folder)
-        # Hid2 -> out
-        save_connection_header(network.fc3, "23", save_folder)
-        # Out
-        save_neuron_header(network.neuron3, "3", save_folder)
-        # Network
-        save_network_header(
-            network,
-            config["net"]["layer sizes"],
-            ["01", "12", "23"],
-            ["1", "2", "3"],
-            save_folder,
-        )
+    # In -> hid
+    save_connection_header(network.fc1, "01", save_folder)
+    # Hid
+    save_neuron_header(network.neuron1, "1", save_folder)
+    # Hid -> out
+    save_connection_header(network.fc2, "12", save_folder)
+    # Out
+    save_neuron_header(network.neuron2, "2", save_folder)
+    # Network
+    save_network_header(
+        network, config["net"]["layer sizes"], ["01", "12"], ["1", "2"], save_folder
+    )
 
 
 def save_connection_header(connection, id, save_folder):
@@ -87,41 +60,22 @@ def save_connection_header(connection, id, save_folder):
 
 def save_neuron_header(neuron, id, save_folder):
     # Get relevant data
-    neuron_type = 1 if isinstance(neuron, AdaptiveLIFNeuron) else 0
-    a_v = neuron.alpha_v.view(-1).tolist()
-    a_th = (
-        neuron.alpha_thresh.view(-1).tolist()
-        if isinstance(neuron, AdaptiveLIFNeuron)
-        else torch.zeros_like(neuron.alpha_v).view(-1).tolist()
-    )
-    a_t = neuron.alpha_t.view(-1).tolist()
-    d_v = neuron.tau_v.view(-1).tolist()
-    d_th = (
-        neuron.tau_thresh.view(-1).tolist()
-        if isinstance(neuron, AdaptiveLIFNeuron)
-        else torch.zeros_like(neuron.tau_v).view(-1).tolist()
-    )
-    d_t = neuron.tau_t.view(-1).tolist()
-    v_rest = neuron.v_rest.item()
-    th_rest = (
-        (torch.ones_like(neuron.thresh) * neuron.thresh_center).view(-1).tolist()
-        if isinstance(neuron, AdaptiveLIFNeuron)
-        else neuron.thresh.view(-1).tolist()
-    )
     size = neuron.spikes.size(-1)
+    v_rest = neuron.v_rest.item()
+    a_t = neuron.alpha_t.view(-1).tolist()
+    d_t = neuron.tau_t.view(-1).tolist()
+    d_v = neuron.tau_v.view(-1).tolist()
+    th = neuron.thresh.view(-1).tolist()
 
     # Create string
     string = [
         "//Auto-generated",
         '#include "Neuron.h"',
-        f"float const a_v_{id}[] = {{{', '.join([str(a) for a in a_v])}}};",
-        f"float const a_th_{id}[] = {{{', '.join([str(a) for a in a_th])}}};",
         f"float const a_t_{id}[] = {{{', '.join([str(a) for a in a_t])}}};",
-        f"float const d_v_{id}[] = {{{', '.join([str(d) for d in d_v])}}};",
-        f"float const d_th_{id}[] = {{{', '.join([str(d) for d in d_th])}}};",
         f"float const d_t_{id}[] = {{{', '.join([str(d) for d in d_t])}}};",
-        f"float const th_rest_{id}[] = {{{', '.join([str(t) for t in th_rest])}}};",
-        f"NeuronConf const conf_{id} = {{{neuron_type}, {size}, a_v_{id}, a_th_{id}, a_t_{id}, d_v_{id}, d_th_{id}, d_t_{id}, {v_rest}, th_rest_{id}}};",
+        f"float const d_v_{id}[] = {{{', '.join([str(d) for d in d_v])}}};",
+        f"float const th_{id}[] = {{{', '.join([str(t) for t in th])}}};",
+        f"NeuronConf const conf_{id} = {{{size}, {v_rest}, a_t_{id}, d_t_{id}, d_v_{id}, th_{id}}};",
     ]
 
     # Write to file
@@ -154,12 +108,7 @@ def save_network_header(network, layer_sizes, conn_ids, neuron_ids, save_folder)
     for i in range(len(conn_ids)):
         conf_string.append(f"&conf_{conn_ids[i]}, &conf_{neuron_ids[i]}, ")
     conf_string[-1] = conf_string[-1][:-2]
-    if isinstance(network, TwoLayerSNN):
-        string = ["//Auto-generated", '#include "TwoLayerNetwork.h"']
-    elif isinstance(network, ThreeLayerSNN):
-        string = ["//Auto-generated", '#include "ThreeLayerNetwork.h"']
-    else:
-        raise ValueError(f"Incompatible network type specified")
+    string = ["//Auto-generated", '#include "TwoLayerNetwork.h"']
     for id in conn_ids:
         string.append(f'#include "connection_conf_{id}.h"')
     for id in neuron_ids:

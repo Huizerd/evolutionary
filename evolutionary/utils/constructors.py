@@ -1,6 +1,6 @@
 from functools import partial
 
-from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
+from evolutionary.network.snn import TwoLayerSNN
 from evolutionary.environment.environment import QuadEnv
 
 
@@ -8,10 +8,8 @@ def build_network(config):
     # Select architecture
     if config["net"]["network"] == "two-layer SNN":
         network = TwoLayerSNN(config)
-    elif config["net"]["network"] == "three-layer SNN":
-        network = ThreeLayerSNN(config)
     else:
-        raise ValueError("Not a valid network")
+        raise ValueError("Incompatible network type specified")
 
     return network
 
@@ -20,10 +18,8 @@ def build_network_partial(config):
     # Select architecture
     if config["net"]["network"] == "two-layer SNN":
         network = partial(TwoLayerSNN, config)
-    elif config["net"]["network"] == "three-layer SNN":
-        network = partial(ThreeLayerSNN, config)
     else:
-        raise ValueError("Not a valid network")
+        raise ValueError("Incompatible network type specified")
 
     return network
 

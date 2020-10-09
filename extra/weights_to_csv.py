@@ -5,9 +5,6 @@ import yaml
 import torch
 import pandas as pd
 
-from pysnn.neuron import AdaptiveLIFNeuron
-
-from evolutionary.network.snn import TwoLayerSNN, ThreeLayerSNN
 from evolutionary.utils.constructors import build_network
 
 
@@ -29,45 +26,20 @@ def weights_to_csv(folder, parameters):
     network.load_state_dict(torch.load(parameters))
 
     # Two-layer
-    if isinstance(network, TwoLayerSNN):
-        # In -> hid, dimension (post, pre)
-        inhid = pd.DataFrame(
-            network.fc1.weight.data.numpy(),
-            columns=[f"pre{i}" for i in range(network.fc1.weight.shape[1])],
-            index=[f"post{i}" for i in range(network.fc1.weight.shape[0])],
-        )
-        inhid.to_csv(save_folder + "inhid.csv")
-        # Hid -> out, dimension (post, pre)
-        hidout = pd.DataFrame(
-            network.fc2.weight.data.numpy(),
-            columns=[f"pre{i}" for i in range(network.fc2.weight.shape[1])],
-            index=[f"post{i}" for i in range(network.fc2.weight.shape[0])],
-        )
-        hidout.to_csv(save_folder + "hidout.csv")
-
-    # Three-layer
-    elif isinstance(network, ThreeLayerSNN):
-        # In -> hid1, dimension (post, pre)
-        inhid1 = pd.DataFrame(
-            network.fc1.weight.data.numpy(),
-            columns=[f"pre{i}" for i in range(network.fc1.weight.shape[1])],
-            index=[f"post{i}" for i in range(network.fc1.weight.shape[0])],
-        )
-        inhid1.to_csv(save_folder + "inhid1.csv")
-        # Hid1 -> hid2, dimension (post, pre)
-        hid1hid2 = pd.DataFrame(
-            network.fc2.weight.data.numpy(),
-            columns=[f"pre{i}" for i in range(network.fc2.weight.shape[1])],
-            index=[f"post{i}" for i in range(network.fc2.weight.shape[0])],
-        )
-        hid1hid2.to_csv(save_folder + "hid1hid2.csv")
-        # Hid2 -> out, dimension (post, pre)
-        hid2out = pd.DataFrame(
-            network.fc3.weight.data.numpy(),
-            columns=[f"pre{i}" for i in range(network.fc3.weight.shape[1])],
-            index=[f"post{i}" for i in range(network.fc3.weight.shape[0])],
-        )
-        hid2out.to_csv(save_folder + "hid2out.csv")
+    # In -> hid, dimension (post, pre)
+    inhid = pd.DataFrame(
+        network.fc1.weight.data.numpy(),
+        columns=[f"pre{i}" for i in range(network.fc1.weight.shape[1])],
+        index=[f"post{i}" for i in range(network.fc1.weight.shape[0])],
+    )
+    inhid.to_csv(save_folder + "inhid.csv")
+    # Hid -> out, dimension (post, pre)
+    hidout = pd.DataFrame(
+        network.fc2.weight.data.numpy(),
+        columns=[f"pre{i}" for i in range(network.fc2.weight.shape[1])],
+        index=[f"post{i}" for i in range(network.fc2.weight.shape[0])],
+    )
+    hidout.to_csv(save_folder + "hidout.csv")
 
 
 if __name__ == "__main__":

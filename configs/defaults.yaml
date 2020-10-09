@@ -1,14 +1,14 @@
 # Default parameters
 
-log location: logs/runs/
+log location: logs/
 log interval: 1
 evo:
-  gens: 100
+  gens: 200
   pop size: 100
   mutation rate: 0.3
-  genes: [weight, alpha_t, tau_v, tau_t, thresh]
-  mutations: [[-80, 81], [-0.333, 0.333], [-0.333, 0.333], [-0.333, 0.333], [-0.333, 0.333]]
-  limits: [[-256, 254], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0], [0.0, 1.0]]
+  genes: [weight, alpha_t, tau_t, tau_v, thresh]
+  mutations: [[-84, 84], [-0.333, 0.333], [-0.333, 0.333], [-1365, 1365], [-341, 341]]
+  limits: [[-256, 254], [0.0, 1.0], [0.0, 1.0], [0, 4096], [1, 1024]]
   D setpoint: 1.0 
   mutation decay: {start: 400, rate: 0.0}
 env:
@@ -35,7 +35,7 @@ net:
   network: two-layer SNN
   layer sizes: [20, 20, 10]
   neurons: [input, regular, regular]
-  default param: {alpha_v: 1.0, thresh_alif: 0.2}
-  quantize: True
+  buffer: 0
+  weight exp: 0
   encoding: cubed-spike place
   decoding: weighted trace

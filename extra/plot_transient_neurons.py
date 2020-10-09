@@ -11,21 +11,20 @@ import matplotlib.pyplot as plt
 
 mpl.rcParams["lines.linewidth"] = 0.8
 
-from evolutionary.network.snn import TwoLayerSNN
 from evolutionary.utils.constructors import build_network, build_environment
 from evolutionary.utils.utils import randomize_env
 
 
 def plot_transient_neurons(folder, parameters):
-    individual_id = "_".join(
-        [s.replace(".net", "") for s in parameters.split("/")[-2:]]
-    )
-    save_folder = folder + f"/transient+neurons+{individual_id}"
-    suffix = 0
-    while os.path.exists(f"{save_folder}+{str(suffix)}/"):
-        suffix += 1
-    save_folder += f"+{str(suffix)}/"
-    os.makedirs(save_folder)
+    # individual_id = "_".join(
+    #     [s.replace(".net", "") for s in parameters.split("/")[-2:]]
+    # )
+    # save_folder = folder + f"/transient+neurons+{individual_id}"
+    # suffix = 0
+    # while os.path.exists(f"{save_folder}+{str(suffix)}/"):
+    #     suffix += 1
+    # save_folder += f"+{str(suffix)}/"
+    # os.makedirs(save_folder)
 
     # Load config
     with open(folder + "/config.yaml", "r") as cf:
@@ -71,15 +70,10 @@ def plot_transient_neurons(folder, parameters):
             obs_errors.append(
                 obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
             )
-            if isinstance(network, TwoLayerSNN):
-                in_spikes = network.input.view(-1).numpy().copy()
-                hid_spikes = network.neuron1.spikes.float().view(-1).numpy().copy()
-                out_spikes = network.out_spikes.float().view(-1).numpy().copy()
-                neuron_spikes.append(
-                    np.concatenate((in_spikes, hid_spikes, out_spikes))
-                )
-            else:
-                raise ValueError(f"Incompatible network type specified")
+            in_spikes = network.input.view(-1).numpy().copy()
+            hid_spikes = network.neuron1.spikes.float().view(-1).numpy().copy()
+            out_spikes = network.out_spikes.float().view(-1).numpy().copy()
+            neuron_spikes.append(np.concatenate((in_spikes, hid_spikes, out_spikes)))
 
             obs, _, done, _ = env.step(action)
 

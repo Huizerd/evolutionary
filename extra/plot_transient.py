@@ -44,6 +44,7 @@ def plot_transient(folder, parameters):
     obs_list = []
     obs_error_list = []
     input_spike_list = []
+    hidden_spike_list = []
     output_spike_list = []
     output_trace_list = []
 
@@ -62,6 +63,7 @@ def plot_transient(folder, parameters):
         observations = []
         obs_errors = []
         in_spikes = []
+        hid_spikes = []
         out_spikes = []
         out_trace = []
 
@@ -78,6 +80,7 @@ def plot_transient(folder, parameters):
                 obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
             )
             in_spikes.append(network.input.view(-1).numpy().copy())
+            hid_spikes.append(network.hid_spikes.float().numpy().copy())
             out_spikes.append(network.out_spikes.float().numpy().copy())
             out_trace.append(network.out_trace.numpy().copy())
 
@@ -88,6 +91,7 @@ def plot_transient(folder, parameters):
         obs_list.append(observations)
         obs_error_list.append(obs_errors)
         input_spike_list.append(in_spikes)
+        hidden_spike_list.append(hid_spikes)
         output_spike_list.append(out_spikes)
         output_trace_list.append(out_trace)
 
@@ -95,13 +99,14 @@ def plot_transient(folder, parameters):
     all_x = []
     all_y = []
     fig, ax = plt.subplots(1, 1)
-    for i, tim, act, ob, ober, ins, outs, outt in zip(
+    for i, tim, act, ob, ober, ins, hids, outs, outt in zip(
         range(len(action_list)),
         time_list,
         action_list,
         obs_list,
         obs_error_list,
         input_spike_list,
+        hidden_spike_list,
         output_spike_list,
         output_trace_list,
     ):
@@ -137,6 +142,10 @@ def plot_transient(folder, parameters):
                 )
             ],
         )
+        hidden_spikes_raw = pd.DataFrame(
+            np.concatenate((np.array(tim)[..., None], np.array(hids)), axis=1),
+            columns=["time"] + [f"{i}" for i in range(config["net"]["layer sizes"][1])],
+        )
         output_spikes_raw = pd.DataFrame(
             np.concatenate((np.array(tim)[..., None], np.array(outs)), axis=1),
             columns=["time"] + [f"Tsp={val:.2f}" for val in network.trace_weights],
@@ -150,6 +159,9 @@ def plot_transient(folder, parameters):
         output_raw.to_csv(save_folder + f"run_raw{i}.csv", index=False, sep=",")
         input_spikes_raw.to_csv(
             save_folder + f"run_raw_in_spikes{i}.csv", index=False, sep=","
+        )
+        hidden_spikes_raw.to_csv(
+            save_folder + f"run_raw_hid_spikes{i}.csv", index=False, sep=","
         )
         output_spikes_raw.to_csv(
             save_folder + f"run_raw_out_spikes{i}.csv", index=False, sep=","
