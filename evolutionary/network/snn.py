@@ -108,9 +108,9 @@ class TwoLayerSNN(SNNNetwork):
         self.in_buffer = deque(
             [
                 torch.zeros_like(self.neuron0.trace)
-                for _ in range(max(1, config["buffer"] + 1))
+                for _ in range(max(1, config["buffer"]))
             ],
-            maxlen=max(1, config["buffer"] + 1),
+            maxlen=max(1, config["buffer"]),
         )
 
         # Hidden
@@ -274,6 +274,7 @@ class TwoLayerSNN(SNNNetwork):
                     param.uniform_(*lim)
                 elif hasattr(child, gene) and gene in ["tau_v", "thresh"]:
                     param = getattr(child, gene)
+                    # .data is needed here
                     param.data = torch.randint_like(param.data, lim[0], lim[1] + 1)
 
     def _encode(self, input):

@@ -93,6 +93,8 @@ def plot_ss(folder, parameters):
     cbar.set_label("thrust command [g]")
     fig.tight_layout()
 
+    fig.savefig(save_folder + "ss.png")
+
     plt.show()
 
 

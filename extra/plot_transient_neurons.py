@@ -16,15 +16,15 @@ from evolutionary.utils.utils import randomize_env
 
 
 def plot_transient_neurons(folder, parameters):
-    # individual_id = "_".join(
-    #     [s.replace(".net", "") for s in parameters.split("/")[-2:]]
-    # )
-    # save_folder = folder + f"/transient+neurons+{individual_id}"
-    # suffix = 0
-    # while os.path.exists(f"{save_folder}+{str(suffix)}/"):
-    #     suffix += 1
-    # save_folder += f"+{str(suffix)}/"
-    # os.makedirs(save_folder)
+    individual_id = "_".join(
+        [s.replace(".net", "") for s in parameters.split("/")[-2:]]
+    )
+    save_folder = folder + f"/transient+neurons+{individual_id}"
+    suffix = 0
+    while os.path.exists(f"{save_folder}+{str(suffix)}/"):
+        suffix += 1
+    save_folder += f"+{str(suffix)}/"
+    os.makedirs(save_folder)
 
     # Load config
     with open(folder + "/config.yaml", "r") as cf:
@@ -120,6 +120,7 @@ def plot_transient_neurons(folder, parameters):
                 .values
             )
             ax1[j, i].plot(np.array(n_plots_oe[k])[sort_idx], ma)
+            ax1[j, i].grid(True)
             k += 1
 
     k = 0
@@ -133,10 +134,18 @@ def plot_transient_neurons(folder, parameters):
                     .values
                 )
                 ax2[j, i].plot(tim, ma)
+                ax2[j, i].grid(True)
             k += 1
 
     fig1.tight_layout()
     fig2.tight_layout()
+
+    # TODO: add saving of data
+
+    # Save figure
+    fig1.savefig(save_folder + "overD.png")
+    fig2.savefig(save_folder + "overT.png")
+
     plt.show()
 
 

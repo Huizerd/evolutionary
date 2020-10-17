@@ -12,7 +12,6 @@ evo:
   D setpoint: 1.0 
   mutation decay: {start: 400, rate: 0.0}
 env:
-  # Lists (except thrust bounds) indicate randomization bounds
   delay: [1, 4]
   noise: [0.05, 0.15]
   noise p: [0.0, 0.25]
@@ -26,16 +25,15 @@ env:
   h0: [2.0, 3.0, 4.0, 5.0]
   h blind: 10.0
   dt: [0.02, 0.0333]
-  jitter: [0.0, 0.2]
+  jitter: [0.0, 0.2]  # TODO: remove this?
   height bounds: [0.1, 100.0]
   max time: 30.0
   seeds: 100
 net:
-  # Lists allow separate parameters for each spiking layer
   network: two-layer SNN
-  layer sizes: [20, 20, 10]
+  layer sizes: [20, 10, 5]
   neurons: [input, regular, regular]
-  buffer: 0
+  buffer: 2
   weight exp: 0
   encoding: cubed-spike place
   decoding: weighted trace

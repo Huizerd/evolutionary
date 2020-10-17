@@ -181,9 +181,7 @@ def main(config, verbose):
             )
 
         # Get offspring: mutate selection
-        offspring = [
-            toolbox.mutate(toolbox.clone(ind)) for ind in selection[: len(population)]
-        ]
+        offspring = [toolbox.mutate(toolbox.clone(ind)) for ind in selection[:]]
 
         # Re-evaluate last generation/population, because their conditions are random
         # Individuals that live multiple generations might otherwise only be evaluated once
@@ -197,7 +195,7 @@ def main(config, verbose):
             ind.fitness.values = fit
 
         # Update the hall of fame with the re-evaluated last generation and the offspring
-        hof.update(offspring)
+        hof.update(population + offspring)
 
         # Select the population for the next generation
         population = toolbox.select(population + offspring, len(population))

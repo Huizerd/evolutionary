@@ -68,12 +68,6 @@ def plot_pid(folder):
         obs_list = []
         time_list = []
 
-        # Log performance
-        action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
-        state_list.append(env.state.copy())
-        obs_gt_list.append(env.div_ph.copy())
-        obs_list.append(obs.copy())
-        time_list.append(env.t)
         while not done:
             # Step the environment
             d_error = obs[0] - d_setpoint
@@ -81,7 +75,7 @@ def plot_pid(folder):
             action = np.array(action)[None]
 
             # Log performance
-            action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
+            action_list.append(np.clip(action[0], *config["env"]["g bounds"]))
             state_list.append(env.state.copy())
             obs_gt_list.append(env.div_ph.copy())
             obs_list.append(obs.copy())

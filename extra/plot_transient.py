@@ -74,7 +74,7 @@ def plot_transient(folder, parameters):
             action = action.numpy()
 
             time.append(env.t)
-            actions.append(np.clip(env.action[0], *config["env"]["g bounds"]))
+            actions.append(np.clip(action[0], *config["env"]["g bounds"]))
             observations.append(obs.numpy().copy())
             obs_errors.append(
                 obs.numpy().copy() - np.array([config["evo"]["D setpoint"], 0.0])
@@ -171,11 +171,14 @@ def plot_transient(folder, parameters):
         )
 
     ax.scatter(all_x, all_y, c="b", alpha=0.5)
-    ax.set_xlim([-10, 10])
-    ax.set_ylim([-0.9, 0.9])
+    ax.set_xlim([-3.0, 3.0])
+    ax.set_ylim([-0.6, 0.6])
+    ax.grid()
     scatter = pd.DataFrame({"x": all_x, "y": all_y})
     scatter.to_csv(save_folder + f"raw_points.csv", index=False, sep=",")
     fig.tight_layout()
+
+    fig.savefig(save_folder + "transient.png")
 
     plt.show()
 

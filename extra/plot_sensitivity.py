@@ -142,8 +142,8 @@ def plot_sensitivity(folder, parameters, show=False):
     ax1.set_title("Performance sensitivity")
     ax1.set_xlabel("time to land")
     ax1.set_ylabel("final velocity")
-    ax1.set_xlim([0.0, 30.0])
-    ax1.set_ylim([0.0, 1.0])
+    ax1.set_xlim([5.0, 12.0])
+    ax1.set_ylim([0.0, 0.2])
     ax1.grid()
 
     # Scatter plot with error bars for 25th and 75th
@@ -182,8 +182,8 @@ def plot_sensitivity(folder, parameters, show=False):
     ax2.set_title("Performance sensitivity")
     ax2.set_xlabel("time to land")
     ax2.set_ylabel("final velocity")
-    ax2.set_xlim([0.0, 10.0])
-    ax2.set_ylim([0.0, 1.0])
+    ax2.set_xlim([5.0, 12.0])
+    ax2.set_ylim([0.0, 0.2])
     ax2.grid()
 
     # Scatter plot with error bars for 25th and 75th

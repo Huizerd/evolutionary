@@ -90,23 +90,6 @@ def plot_performance(folder, parameters):
             ]
         )
 
-        # Log performance
-        action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
-        state_list.append(env.state.copy())
-        obs_gt_list.append(env.div_ph.copy())
-        obs_list.append(obs.copy())
-        time_list.append(env.t)
-        spike_list.append([0, 0])
-        # Log neurons
-        for name, child in network.named_children():
-            if name in neuron_dict:
-                neuron_dict[name]["trace"].append(
-                    child.trace.detach().clone().view(-1).numpy()
-                )
-                neuron_dict[name]["spike"].append(
-                    child.spikes.detach().clone().view(-1).numpy()
-                ) if hasattr(child, "spikes") else None
-
         while not done:
             # Step the environment
             obs = torch.from_numpy(obs)
@@ -114,7 +97,7 @@ def plot_performance(folder, parameters):
             action = action.numpy()
 
             # Log performance
-            action_list.append(np.clip(env.action[0], *config["env"]["g bounds"]))
+            action_list.append(np.clip(action[0], *config["env"]["g bounds"]))
             state_list.append(env.state.copy())
             obs_gt_list.append(env.div_ph.copy())
             obs_list.append(obs.numpy().copy())
@@ -257,6 +240,10 @@ def plot_performance(folder, parameters):
         ax.grid()
     fig_p.tight_layout()
     fig_n.tight_layout()
+
+    # Save figure
+    fig_p.savefig(save_folder + "performance.png")
+    fig_n.savefig(save_folder + "neurons.png")
 
     plt.show()
 

@@ -63,8 +63,9 @@ def save_neuron_header(neuron, id, save_folder):
     size = neuron.spikes.size(-1)
     v_rest = neuron.v_rest.item()
     a_t = neuron.alpha_t.view(-1).tolist()
+    # This works
+    d_v = ((4096 - neuron.tau_v.view(-1)) / 4096).tolist()
     d_t = neuron.tau_t.view(-1).tolist()
-    d_v = neuron.tau_v.view(-1).tolist()
     th = neuron.thresh.view(-1).tolist()
 
     # Create string
@@ -72,10 +73,10 @@ def save_neuron_header(neuron, id, save_folder):
         "//Auto-generated",
         '#include "Neuron.h"',
         f"float const a_t_{id}[] = {{{', '.join([str(a) for a in a_t])}}};",
-        f"float const d_t_{id}[] = {{{', '.join([str(d) for d in d_t])}}};",
         f"float const d_v_{id}[] = {{{', '.join([str(d) for d in d_v])}}};",
+        f"float const d_t_{id}[] = {{{', '.join([str(d) for d in d_t])}}};",
         f"float const th_{id}[] = {{{', '.join([str(t) for t in th])}}};",
-        f"NeuronConf const conf_{id} = {{{size}, {v_rest}, a_t_{id}, d_t_{id}, d_v_{id}, th_{id}}};",
+        f"NeuronConf const conf_{id} = {{{size}, a_t_{id}, d_v_{id}, d_t_{id}, {v_rest}, th_{id}}};",
     ]
 
     # Write to file
