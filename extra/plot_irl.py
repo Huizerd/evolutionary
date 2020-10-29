@@ -10,7 +10,7 @@ mpl.rcParams["lines.linewidth"] = 0.8
 
 def plot_irl(folder):
     # Find files
-    files = glob.glob(folder + "20*.csv")
+    files = sorted(glob.glob(folder + "20*.csv"))
 
     # Create plot
     fig, axs = plt.subplots(7, 1, sharex=True, figsize=(10, 10), dpi=200)
@@ -69,7 +69,12 @@ def plot_irl(folder):
                 plot_data["thrust"].rolling(window=20, min_periods=1).mean()
             )
             # Earlier "landing"
-            stop_alt = (-plot_data["pos_z"] < 0.1).idxmax()
+            stop_alt_01 = (-plot_data["pos_z"] < 0.1).idxmax()
+            stop_alt_min = (-plot_data["pos_z"]).idxmin()
+            if stop_alt_01 == 0:
+                stop_alt = stop_alt_min
+            else:
+                stop_alt = stop_alt_01
             plot_data = plot_data.iloc[:stop_alt, :]
 
             # Plot data
@@ -109,7 +114,7 @@ def plot_irl(folder):
         # box = ax.get_position()
         # ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
         ax.grid()
-    axs[0].legend()
+    axs[0].legend(ncol=4)
     # axs[0].legend(loc='center left', bbox_to_anchor=(1, 0.5))
     fig.tight_layout()
 
